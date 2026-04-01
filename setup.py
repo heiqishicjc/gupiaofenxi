@@ -9,7 +9,7 @@ with open("README.md", "r", encoding="utf-8") as fh:
 
 setup(
     name="gupiaofenxi",
-    version="0.1.0",
+    version="1.0.1",
     author="Stock Analysis Team",
     author_email="team@example.com",
     description="A Python-based stock analysis tool",

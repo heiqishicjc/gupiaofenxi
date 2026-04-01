@@ -18,7 +18,8 @@ def run_command(command, description):
     print(f"   命令: {command}")
     
     try:
-        result = subprocess.run(command, shell=True, capture_output=True, text=True)
+        # 使用正确的编码处理中文输出
+        result = subprocess.run(command, shell=True, capture_output=True, text=True, encoding='utf-8')
         if result.returncode == 0:
             print("   ✅ 成功")
             if result.stdout:

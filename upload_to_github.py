@@ -3,12 +3,14 @@
 """
 GitHub 上传助手
 
-这个脚本将帮助您将项目上传到 GitHub
+这个脚本将帮助您将项目上传到 GitHub，支持 Personal Access Token 认证
 """
 
 import os
 import subprocess
 import sys
+import getpass
+import urllib.parse
 
 def run_command(command, description):
     """运行命令并显示结果"""
@@ -76,6 +78,61 @@ def check_github_connection():
     
     return True
 
+def get_github_token():
+    """获取 GitHub Personal Access Token"""
+    print("\n🔐 GitHub Token 认证")
+    print("=" * 40)
+    
+    print("\n💡 为了安全推送代码，您需要使用 Personal Access Token")
+    print("   而不是 GitHub 密码（特别是启用 2FA 的用户）")
+    
+    print("\n📝 如何获取 Token:")
+    print("   1. 登录 GitHub → Settings → Developer settings")
+    print("   2. 选择 Personal access tokens → Tokens (classic)")
+    print("   3. 点击 Generate new token (classic)")
+    print("   4. 设置过期时间和权限（至少选择 repo 权限）")
+    print("   5. 复制生成的 Token")
+    
+    while True:
+        try:
+            token = getpass.getpass("\n🔑 请输入您的 GitHub Token: ")
+            if not token.strip():
+                print("❌ Token 不能为空，请重新输入")
+                continue
+                
+            # 验证 Token 格式（至少 40 个字符）
+            if len(token) < 40:
+                print("❌ Token 格式不正确，请检查后重新输入")
+                continue
+                
+            print("✅ Token 格式验证通过")
+            return token.strip()
+            
+        except KeyboardInterrupt:
+            print("\n👋 用户取消操作")
+            return None
+        except Exception as e:
+            print(f"❌ 输入错误: {e}")
+            return None
+
+def configure_token_auth(token, username):
+    """配置 Token 认证"""
+    print("\n⚙️  配置 Token 认证...")
+    
+    # 使用 Token 配置远程仓库 URL
+    encoded_token = urllib.parse.quote(token, safe='')
+    remote_url = f"https://{username}:{encoded_token}@github.com/{username}/gupiaofenxi.git"
+    
+    # 设置远程仓库
+    result = run_command(f"git remote set-url origin {remote_url}", "配置远程仓库 URL")
+    
+    if result:
+        print("✅ Token 认证配置成功")
+        return True
+    else:
+        print("❌ Token 认证配置失败")
+        return False
+
 def create_github_repo_instructions():
     """显示创建 GitHub 仓库的说明"""
     print("\n" + "="*60)
@@ -99,6 +156,11 @@ def create_github_repo_instructions():
    git branch -M main
    git push -u origin main
 
+💡 重要提示：
+- 如果启用 2FA，必须使用 Personal Access Token
+- 获取 Token：Settings → Developer settings → Personal access tokens → Tokens (classic)
+- Token 权限至少需要包含 repo 权限
+
 完成后，请运行下一步的推送命令。
     """
     
@@ -116,6 +178,36 @@ def push_to_github():
         create_github_repo_instructions()
         return False
     
+    # 获取 GitHub 用户名
+    username_result = subprocess.run("git config user.name", shell=True, capture_output=True, text=True)
+    if username_result.returncode != 0:
+        print("❌ 无法获取 Git 用户名")
+        return False
+    
+    username = username_result.stdout.strip()
+    
+    # 询问是否使用 Token 认证
+    print("\n🔐 认证方式选择")
+    print("=" * 40)
+    print("💡 推荐使用 Personal Access Token 进行认证")
+    print("   特别是启用 2FA 的用户必须使用 Token")
+    
+    use_token = input("\n是否使用 Token 认证？(y/n, 默认 y): ").strip().lower()
+    
+    if use_token in ['', 'y', 'yes', '是']:
+        # 使用 Token 认证
+        token = get_github_token()
+        if not token:
+            print("❌ 未提供 Token，认证失败")
+            return False
+        
+        # 配置 Token 认证
+        if not configure_token_auth(token, username):
+            return False
+    else:
+        print("\n⚠️  将使用传统密码认证")
+        print("💡 如果启用 2FA，请使用 Personal Access Token")
+    
     # 推送代码
     push_steps = [
         ("git branch -M main", "设置主分支"),
@@ -128,6 +220,11 @@ def push_to_github():
             print("   1. GitHub 用户名和密码/令牌是否正确")
             print("   2. 网络连接是否正常")
             print("   3. 远程仓库地址是否正确")
+            
+            if use_token in ['', 'y', 'yes', '是']:
+                print("   4. Token 权限是否包含 repo 权限")
+                print("   5. Token 是否已过期")
+            
             return False
     
     return True

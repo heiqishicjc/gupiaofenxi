@@ -86,7 +86,7 @@ class ChinaStockFetcher:
         if not TUSHARE_AVAILABLE and not YFINANCE_AVAILABLE:
             raise ImportError("没有可用的数据源，请安装 tushare 或 yfinance")
     
-    def get_a_stock_data(self, symbol, period="1y", interval="1d", use_cache=True):
+    def get_a_stock_data(self, symbol, period="1y", interval="1d", use_cache=True, start_date=None, end_date=None):
         """
         获取A股股票数据 - 兼容版本
         
@@ -95,6 +95,8 @@ class ChinaStockFetcher:
             period: 数据期间
             interval: 数据间隔
             use_cache: 是否使用缓存
+            start_date: 开始日期 (YYYYMMDD)
+            end_date: 结束日期 (YYYYMMDD)
             
         Returns:
             pandas.DataFrame: A股股票数据
@@ -104,7 +106,11 @@ class ChinaStockFetcher:
             print(f"无效的A股代码格式: {symbol}")
             return None
         
-        cache_file = os.path.join(self.cache_dir, f"a_stock_{symbol}_{period}_{interval}.csv")
+        # 生成缓存文件名
+        if start_date and end_date:
+            cache_file = os.path.join(self.cache_dir, f"a_stock_{symbol}_{start_date}_{end_date}.csv")
+        else:
+            cache_file = os.path.join(self.cache_dir, f"a_stock_{symbol}_{period}_{interval}.csv")
         
         # 检查缓存
         if use_cache and os.path.exists(cache_file):
@@ -117,7 +123,7 @@ class ChinaStockFetcher:
         
         # 优先使用 Tushare
         if self.prefer_tushare and TUSHARE_AVAILABLE and self.pro:
-            data = self._get_data_tushare(symbol, period)
+            data = self._get_data_tushare(symbol, period, start_date, end_date)
             if data is not None:
                 # 保存到缓存
                 if use_cache:
@@ -138,27 +144,31 @@ class ChinaStockFetcher:
         print(f"无法获取 {symbol} 的A股数据")
         return None
     
-    def _get_data_tushare(self, symbol, period):
+    def _get_data_tushare(self, symbol, period, start_date=None, end_date=None):
         """使用 Tushare 获取数据"""
         try:
             print(f"使用 Tushare 获取A股 {symbol} 数据...")
             
-            # 处理日期
-            end_date = datetime.now().strftime('%Y%m%d')
-            end_dt = datetime.strptime(end_date, '%Y%m%d')
+            # 处理日期参数
+            if end_date is None:
+                end_date = datetime.now().strftime('%Y%m%d')
             
-            if period == "1y":
-                start_dt = end_dt - timedelta(days=365)
-            elif period == "6mo":
-                start_dt = end_dt - timedelta(days=180)
-            elif period == "3mo":
-                start_dt = end_dt - timedelta(days=90)
-            elif period == "1mo":
-                start_dt = end_dt - timedelta(days=30)
-            else:
-                start_dt = end_dt - timedelta(days=365)
-            
-            start_date = start_dt.strftime('%Y%m%d')
+            if start_date is None:
+                # 根据期间计算开始日期
+                end_dt = datetime.strptime(end_date, '%Y%m%d')
+                
+                if period == "1y":
+                    start_dt = end_dt - timedelta(days=365)
+                elif period == "6mo":
+                    start_dt = end_dt - timedelta(days=180)
+                elif period == "3mo":
+                    start_dt = end_dt - timedelta(days=90)
+                elif period == "1mo":
+                    start_dt = end_dt - timedelta(days=30)
+                else:
+                    start_dt = end_dt - timedelta(days=365)
+                
+                start_date = start_dt.strftime('%Y%m%d')
             
             # 获取数据
             data = self.pro.daily(ts_code=symbol, start_date=start_date, end_date=end_date)

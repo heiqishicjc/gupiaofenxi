@@ -142,7 +142,9 @@ class AutoStockDataUpdater:
             }
         
         # 计算需要更新的天数
-        last_date = datetime.strptime(last_update, '%Y%m%d')
+        # 确保last_update是字符串类型
+        last_update_str = str(last_update)
+        last_date = datetime.strptime(last_update_str, '%Y%m%d')
         today_date = datetime.strptime(today, '%Y%m%d')
         
         # 计算工作日天数
@@ -242,15 +244,15 @@ class AutoStockDataUpdater:
         update_info = self.get_update_needed_info()
         
         if not update_info['update_needed']:
-            print(f"✅ {update_info['reason']}")
+            print(f"成功: {update_info['reason']}")
             return True
         
-        print(f"🔄 开始自动更新")
+        print(f"开始自动更新")
         print(f"   原因: {update_info['reason']}")
         print(f"   更新范围: {update_info['from_date']} 到 {update_info['to_date']}")
         
         if not self.config['stock_codes']:
-            print("❌ 没有配置股票代码，请先进行初始下载")
+            print("没有配置股票代码，请先进行初始下载")
             return False
         
         all_updated_data = []
@@ -258,10 +260,11 @@ class AutoStockDataUpdater:
         
         for symbol in self.config['stock_codes']:
             try:
-                print(f"📥 更新 {symbol}...")
+                print(f"更新 {symbol}...")
                 
                 # 从最后更新日期的下一天开始
-                from_date = (datetime.strptime(update_info['from_date'], '%Y%m%d') + timedelta(days=1)).strftime('%Y%m%d')
+                from_date_str = str(update_info['from_date'])
+                from_date = (datetime.strptime(from_date_str, '%Y%m%d') + timedelta(days=1)).strftime('%Y%m%d')
                 
                 data = self.fetcher.get_a_stock_data(symbol, start_date=from_date, end_date=update_info['to_date'], use_cache=False)
                 
@@ -270,15 +273,15 @@ class AutoStockDataUpdater:
                     converted_data = self._convert_to_tushare_format(data, symbol)
                     all_updated_data.append(converted_data)
                     success_count += 1
-                    print(f"✅ {symbol} 更新成功 ({len(data)} 条记录)")
+                    print(f"成功: {symbol} 更新成功 ({len(data)} 条记录)")
                 else:
-                    print(f"⚠️  {symbol} 无新数据")
+                    print(f"警告: {symbol} 无新数据")
                 
                 # 添加延迟
                 time.sleep(2)
                 
             except Exception as e:
-                print(f"❌ {symbol} 更新失败: {e}")
+                print(f"失败: {symbol} 更新失败: {e}")
         
         if all_updated_data:
             # 合并更新数据
@@ -398,7 +401,7 @@ class AutoStockDataUpdater:
 
 def main():
     """主函数"""
-    print("🚀 A股数据自动更新工具")
+    print("A股数据自动更新工具")
     print("=" * 50)
     
     # 配置参数
@@ -409,7 +412,7 @@ def main():
     updater = AutoStockDataUpdater(data_file=DATA_FILE, config_file=CONFIG_FILE)
     
     while True:
-        print("\n📋 请选择操作:")
+        print("\n请选择操作:")
         print("1. 显示当前状态")
         print("2. 初始下载完整数据")
         print("3. 自动更新到最新数据")
@@ -425,7 +428,7 @@ def main():
         elif choice == "2":
             # 初始下载
             if updater.config['initial_download_complete']:
-                confirm = input("⚠️  已经进行过初始下载，确定要重新下载吗？(y/N): ").strip().lower()
+                confirm = input("已经进行过初始下载，确定要重新下载吗？(y/N): ").strip().lower()
                 if confirm != 'y':
                     continue
             
@@ -440,7 +443,7 @@ def main():
         elif choice == "3":
             # 自动更新
             if not updater.config['initial_download_complete']:
-                print("❌ 请先进行初始下载")
+                print("请先进行初始下载")
                 continue
             
             updater.auto_update()

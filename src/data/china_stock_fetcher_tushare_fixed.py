@@ -37,15 +37,25 @@ class ChinaStockFetcherTushareFixed:
         '海康威视': '002415.SZ'
     }
     
-    def __init__(self, token="46813b22149a178b86d12174cf301142e68fe13445129dd34a8cbcad", 
+    def __init__(self, token=None, 
                  cache_dir="data/tushare_cache"):
         """
         初始化A股数据获取器 - Tushare 修复版本
         
         Args:
-            token: Tushare API Token
+            token: Tushare API Token (None表示需要用户输入)
             cache_dir: 数据缓存目录（项目相对路径）
         """
+        # 如果未提供token，提示用户输入
+        if token is None:
+            print("警告: 未提供Tushare API Token")
+            print("请从 https://tushare.pro/ 获取有效的API Token")
+            token = input("请输入您的Tushare API Token: ").strip()
+            
+            if not token:
+                print("错误: 必须提供有效的Tushare API Token")
+                raise ValueError("Tushare API Token is required")
+        
         self.token = token
         
         # 使用项目相对路径
@@ -55,11 +65,20 @@ class ChinaStockFetcherTushareFixed:
         os.makedirs(self.cache_dir, exist_ok=True)
         
         # 设置 Tushare Token
-        ts.set_token(token)
-        self.pro = ts.pro_api()
-        
-        print("✅ Tushare API 初始化成功")
-        print(f"📁 缓存目录: {self.cache_dir}")
+        try:
+            ts.set_token(token)
+            self.pro = ts.pro_api()
+            
+            # 测试API连接
+            test_result = self.pro.query('trade_cal', exchange='', start_date='20240101', end_date='20240102')
+            
+            print("Tushare API 初始化成功")
+            print(f"缓存目录: {self.cache_dir}")
+            
+        except Exception as e:
+            print(f"Tushare API 初始化失败: {e}")
+            print("请检查您的API Token是否正确，或联系Tushare客服")
+            raise
     
     def get_a_stock_data(self, symbol, start_date=None, end_date=None, period="1y", use_cache=True):
         """

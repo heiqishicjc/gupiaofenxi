@@ -7,8 +7,8 @@
 """
 
 # 版本信息
-__version__ = "1.2.0"
-__version_info__ = (1, 2, 0)
+__version__ = "1.3.0"
+__version_info__ = (1, 3, 0)
 
 # 版本元数据
 __author__ = "heiqishicjc"
@@ -17,7 +17,7 @@ __description__ = "A股股票分析工具 - Python-based stock analysis tool for
 __url__ = "https://github.com/heiqishicjc/gupiaofenxi"
 
 # 版本发布日期
-__release_date__ = "2026-04-03"
+__release_date__ = "2026-04-10"
 
 # 兼容性信息
 __python_requires__ = ">=3.8"

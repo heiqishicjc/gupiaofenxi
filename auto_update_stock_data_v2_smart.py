@@ -211,7 +211,7 @@ class AutoStockDataUpdaterV2Smart:
         
         # 默认配置
         return {
-            'last_update': '20240101',
+            'last_update': '20200101',
             'market_status': {}
         }
     
@@ -279,7 +279,7 @@ class AutoStockDataUpdaterV2Smart:
             market_stocks[market].append(stock['ts_code'])
         
         # 下载各市场数据
-        start_date = '20240101'
+        start_date = '20200101'
         end_date = datetime.now().strftime('%Y%m%d')
         
         total_stocks = sum(len(stocks) for stocks in market_stocks.values())

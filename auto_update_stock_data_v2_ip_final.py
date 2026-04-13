@@ -10,9 +10,9 @@ A股数据自动更新工具 - 版本2.0 IP直连最终版
 4. 智能重试机制
 
 升级功能：
-1. 按市场分类保存数据：深圳市场(stocksz.csv)、上海市场(stocksh.csv)、其他市场(stockother.csv)
+1. 按市场分类保存数据：深圳市场(stockszzl.csv)、上海市场(stockshzl.csv)、其他市场(stockotherzl.csv)
 2. 数据完整性检测：检测数据缺失并自动补充
-3. 时间范围：20240101到当前日期
+3. 时间范围：20200101到当前日期
 4. 智能更新：只更新缺失的数据
 """
 
@@ -133,9 +133,9 @@ class AutoStockDataUpdaterV2Final:
         
         # 市场分类
         self.MARKET_CATEGORIES = {
-            'sz': {'name': '深圳股市', 'file': 'stocksz.csv', 'prefix': ['000', '002', '003', '300']},
-            'sh': {'name': '上海股市', 'file': 'stocksh.csv', 'prefix': ['600', '601', '603', '605', '688']},
-            'other': {'name': '其他股市', 'file': 'stockother.csv', 'prefix': []}
+            'sz': {'name': '深圳股市', 'file': 'stockszzl.csv', 'prefix': ['000', '002', '003', '300']},
+            'sh': {'name': '上海股市', 'file': 'stockshzl.csv', 'prefix': ['600', '601', '603', '605', '688']},
+            'other': {'name': '其他股市', 'file': 'stockotherzl.csv', 'prefix': []}
         }
         
         # 加载配置
@@ -155,7 +155,7 @@ class AutoStockDataUpdaterV2Final:
         
         # 默认配置
         return {
-            'last_update': '20240101',
+            'last_update': '20200101',
             'market_status': {}
         }
     
@@ -223,7 +223,7 @@ class AutoStockDataUpdaterV2Final:
             market_stocks[market].append(stock['ts_code'])
         
         # 下载各市场数据
-        start_date = '20240101'
+        start_date = '20200101'
         end_date = datetime.now().strftime('%Y%m%d')
         
         for market, stocks in market_stocks.items():

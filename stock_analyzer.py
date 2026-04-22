@@ -27,6 +27,20 @@ from datetime import datetime, timedelta
 import warnings
 warnings.filterwarnings('ignore')
 
+# 设置控制台编码为GBK以支持中文显示
+import sys
+import io
+
+if sys.platform == "win32":
+    try:
+        # 设置标准输出编码为GBK
+        if sys.stdout.encoding != 'gbk':
+            sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding='gbk', errors='replace')
+        if sys.stderr.encoding != 'gbk':
+            sys.stderr = io.TextIOWrapper(sys.stderr.buffer, encoding='gbk', errors='replace')
+    except Exception:
+        pass
+
 
 # 添加src目录到Python路径
 sys.path.append(os.path.join(os.path.dirname(__file__), 'src'))

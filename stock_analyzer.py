@@ -19,6 +19,24 @@ from datetime import datetime, timedelta
 import warnings
 warnings.filterwarnings('ignore')
 
+# 尝试设置控制台编码为UTF-8，以支持中文显示
+import sys
+import io
+
+# 对于Windows，尝试设置控制台编码
+if sys.platform == "win32":
+    try:
+        # 尝试设置控制台输出编码
+        import codecs
+        # 设置标准输出的编码
+        if sys.stdout.encoding != 'UTF-8':
+            sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding='utf-8', errors='replace')
+        if sys.stderr.encoding != 'UTF-8':
+            sys.stderr = io.TextIOWrapper(sys.stderr.buffer, encoding='utf-8', errors='replace')
+    except Exception as e:
+        # 如果设置失败，继续运行
+        pass
+
 # 添加src目录到Python路径
 sys.path.append(os.path.join(os.path.dirname(__file__), 'src'))
 
@@ -47,10 +65,10 @@ class StockAnalyzer:
         # 检查目录是否存在
         import os
         if not os.path.exists(data_dir):
-            print(f"⚠️  注意: 数据目录 {data_dir} 不存在")
+            print(f"[!] 注意: 数据目录 {data_dir} 不存在")
             print(f"将尝试创建目录...")
             os.makedirs(data_dir, exist_ok=True)
-            print(f"✅ 已创建目录: {data_dir}")
+            print(f"[OK] 已创建目录: {data_dir}")
         
         # 加载市场数据
         self._load_market_data()
@@ -1057,23 +1075,6 @@ def main():
 
 
 if __name__ == "__main__":
-    # 尝试设置控制台编码为UTF-8，以支持中文显示
-    import sys
-    import io
-    
-    # 对于Windows，尝试设置控制台编码
-    if sys.platform == "win32":
-        try:
-            # 尝试设置控制台输出编码
-            import codecs
-            # 设置标准输出的编码
-            if sys.stdout.encoding != 'UTF-8':
-                sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding='utf-8', errors='replace')
-            if sys.stderr.encoding != 'UTF-8':
-                sys.stderr = io.TextIOWrapper(sys.stderr.buffer, encoding='utf-8', errors='replace')
-        except Exception as e:
-            # 如果设置失败，继续运行
-            pass
     
     # 检查基本依赖
     try:

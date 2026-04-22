@@ -215,42 +215,123 @@ class StockAnalyzer:
         """计算基础统计指标"""
         stats = {}
         
+        # 确保数据足够
+        if len(data) < 2:
+            return {
+                'price_stats': {
+                    'current_price': data['close'].iloc[-1] if len(data) > 0 else 0,
+                    'price_change_1d': 0,
+                    'price_change_1d_pct': 0,
+                    'price_change_5d': 0,
+                    'price_change_5d_pct': 0,
+                    'price_change_1m': None,
+                    'price_change_3m': None,
+                    'price_change_6m': None,
+                    'price_change_1y': None,
+                    'high_52w': data['high'].max() if len(data) > 0 else 0,
+                    'low_52w': data['low'].min() if len(data) > 0 else 0,
+                    'avg_volume': data['vol'].mean() if len(data) > 0 else 0,
+                    'avg_amount': data['amount'].mean() if len(data) > 0 else 0,
+                    'volume_ratio': None
+                },
+                'volatility_stats': {
+                    'daily_volatility': 0,
+                    'annual_volatility': 0,
+                    'max_drawdown': 0,
+                    'sharpe_ratio': 0,
+                    'sortino_ratio': 0,
+                    'var_95': 0
+                },
+                'distribution_stats': {
+                    'skewness': 0,
+                    'kurtosis': 0,
+                    'positive_days': 0,
+                    'negative_days': 0
+                }
+            }
+        
         # 价格统计
-        stats['price_stats'] = {
+        price_stats = {
             'current_price': data['close'].iloc[-1],
-            'price_change_1d': data['close'].iloc[-1] - data['close'].iloc[-2],
-            'price_change_1d_pct': ((data['close'].iloc[-1] - data['close'].iloc[-2]) / data['close'].iloc[-2]) * 100,
-            'price_change_5d': data['close'].iloc[-1] - data['close'].iloc[-6],
-            'price_change_5d_pct': ((data['close'].iloc[-1] - data['close'].iloc[-6]) / data['close'].iloc[-6]) * 100,
-            'price_change_1m': data['close'].iloc[-1] - data['close'].iloc[-22] if len(data) > 22 else None,
-            'price_change_3m': data['close'].iloc[-1] - data['close'].iloc[-66] if len(data) > 66 else None,
-            'price_change_6m': data['close'].iloc[-1] - data['close'].iloc[-132] if len(data) > 132 else None,
-            'price_change_1y': data['close'].iloc[-1] - data['close'].iloc[-252] if len(data) > 252 else None,
             'high_52w': data['high'].max(),
             'low_52w': data['low'].min(),
             'avg_volume': data['vol'].mean(),
             'avg_amount': data['amount'].mean(),
-            'volume_ratio': data['vol'].iloc[-1] / data['vol'].rolling(20).mean().iloc[-1] if len(data) >= 20 else None
         }
+        
+        # 计算日涨跌
+        if len(data) >= 2:
+            price_stats['price_change_1d'] = data['close'].iloc[-1] - data['close'].iloc[-2]
+            price_stats['price_change_1d_pct'] = ((data['close'].iloc[-1] - data['close'].iloc[-2]) / data['close'].iloc[-2]) * 100 if data['close'].iloc[-2] != 0 else 0
+        else:
+            price_stats['price_change_1d'] = 0
+            price_stats['price_change_1d_pct'] = 0
+            
+        # 计算5日涨跌
+        if len(data) >= 6:
+            price_stats['price_change_5d'] = data['close'].iloc[-1] - data['close'].iloc[-6]
+            price_stats['price_change_5d_pct'] = ((data['close'].iloc[-1] - data['close'].iloc[-6]) / data['close'].iloc[-6]) * 100 if data['close'].iloc[-6] != 0 else 0
+        else:
+            price_stats['price_change_5d'] = 0
+            price_stats['price_change_5d_pct'] = 0
+            
+        # 计算其他时间段的涨跌
+        price_stats['price_change_1m'] = data['close'].iloc[-1] - data['close'].iloc[-22] if len(data) > 22 else None
+        price_stats['price_change_3m'] = data['close'].iloc[-1] - data['close'].iloc[-66] if len(data) > 66 else None
+        price_stats['price_change_6m'] = data['close'].iloc[-1] - data['close'].iloc[-132] if len(data) > 132 else None
+        price_stats['price_change_1y'] = data['close'].iloc[-1] - data['close'].iloc[-252] if len(data) > 252 else None
+        
+        # 计算成交量比率
+        if len(data) >= 20:
+            vol_ma20 = data['vol'].rolling(20).mean()
+            if not pd.isna(vol_ma20.iloc[-1]) and vol_ma20.iloc[-1] != 0:
+                price_stats['volume_ratio'] = data['vol'].iloc[-1] / vol_ma20.iloc[-1]
+            else:
+                price_stats['volume_ratio'] = None
+        else:
+            price_stats['volume_ratio'] = None
+            
+        stats['price_stats'] = price_stats
         
         # 波动率统计
         returns = data['close'].pct_change().dropna()
+        if len(returns) > 0:
+            daily_vol = returns.std() * 100
+            annual_vol = returns.std() * np.sqrt(252) * 100 if returns.std() > 0 else 0
+            sharpe = returns.mean() / returns.std() * np.sqrt(252) if returns.std() > 0 else 0
+            sortino = self._calculate_sortino_ratio(returns)
+            var_95 = np.percentile(returns, 5) * 100 if len(returns) > 0 else 0
+        else:
+            daily_vol = 0
+            annual_vol = 0
+            sharpe = 0
+            sortino = 0
+            var_95 = 0
+            
         stats['volatility_stats'] = {
-            'daily_volatility': returns.std() * 100,  # 百分比
-            'annual_volatility': returns.std() * np.sqrt(252) * 100,
+            'daily_volatility': daily_vol,
+            'annual_volatility': annual_vol,
             'max_drawdown': self._calculate_max_drawdown(data['close']),
-            'sharpe_ratio': returns.mean() / returns.std() * np.sqrt(252) if returns.std() > 0 else 0,
-            'sortino_ratio': self._calculate_sortino_ratio(returns),
-            'var_95': np.percentile(returns, 5) * 100  # 95% VaR
+            'sharpe_ratio': sharpe,
+            'sortino_ratio': sortino,
+            'var_95': var_95
         }
         
         # 分布统计
-        stats['distribution_stats'] = {
-            'skewness': returns.skew(),
-            'kurtosis': returns.kurtosis(),
-            'positive_days': (returns > 0).sum() / len(returns) * 100,
-            'negative_days': (returns < 0).sum() / len(returns) * 100
-        }
+        if len(returns) > 0:
+            stats['distribution_stats'] = {
+                'skewness': returns.skew(),
+                'kurtosis': returns.kurtosis(),
+                'positive_days': (returns > 0).sum() / len(returns) * 100,
+                'negative_days': (returns < 0).sum() / len(returns) * 100
+            }
+        else:
+            stats['distribution_stats'] = {
+                'skewness': 0,
+                'kurtosis': 0,
+                'positive_days': 0,
+                'negative_days': 0
+            }
         
         return stats
     
@@ -474,24 +555,29 @@ class StockAnalyzer:
         
         # 寻找局部极值点
         try:
-            # 尝试导入 scipy，如果不可用则使用备用方法
+            # 尝试导入 scipy
             try:
                 from scipy.signal import argrelextrema
                 import numpy as np
                 
-                # 局部最大值
-                max_indices = argrelextrema(recent_prices.values, np.greater, order=5)[0]
-                # 局部最小值
-                min_indices = argrelextrema(recent_prices.values, np.less, order=5)[0]
-                
-                patterns['local_max_count'] = len(max_indices)
-                patterns['local_min_count'] = len(min_indices)
-                
-                # 检查是否形成头肩形态
-                if len(max_indices) >= 3:
-                    patterns['potential_head_shoulders'] = '可能'
+                if len(recent_prices) >= 10:
+                    # 局部最大值
+                    max_indices = argrelextrema(recent_prices.values, np.greater, order=5)[0]
+                    # 局部最小值
+                    min_indices = argrelextrema(recent_prices.values, np.less, order=5)[0]
+                    
+                    patterns['local_max_count'] = len(max_indices)
+                    patterns['local_min_count'] = len(min_indices)
+                    
+                    # 检查是否形成头肩形态
+                    if len(max_indices) >= 3:
+                        patterns['potential_head_shoulders'] = '可能'
+                    else:
+                        patterns['potential_head_shoulders'] = '未识别'
                 else:
-                    patterns['potential_head_shoulders'] = '未识别'
+                    patterns['local_max_count'] = 0
+                    patterns['local_min_count'] = 0
+                    patterns['potential_head_shoulders'] = '数据不足'
                     
             except ImportError:
                 # scipy 不可用，使用简单方法
@@ -501,16 +587,19 @@ class StockAnalyzer:
             
             # 检查趋势线突破
             # 简单实现：检查价格是否突破近期高/低点
-            recent_high = recent_prices.max()
-            recent_low = recent_prices.min()
-            current_price = price.iloc[-1]
-            
-            if current_price >= recent_high * 0.98:
-                patterns['breakout_status'] = '接近突破高点'
-            elif current_price <= recent_low * 1.02:
-                patterns['breakout_status'] = '接近突破低点'
+            if len(recent_prices) > 0:
+                recent_high = recent_prices.max()
+                recent_low = recent_prices.min()
+                current_price = price.iloc[-1]
+                
+                if recent_high > 0 and current_price >= recent_high * 0.98:
+                    patterns['breakout_status'] = '接近突破高点'
+                elif recent_low > 0 and current_price <= recent_low * 1.02:
+                    patterns['breakout_status'] = '接近突破低点'
+                else:
+                    patterns['breakout_status'] = '区间震荡'
             else:
-                patterns['breakout_status'] = '区间震荡'
+                patterns['breakout_status'] = '数据不足'
                 
         except Exception as e:
             patterns['error'] = str(e)
@@ -518,8 +607,12 @@ class StockAnalyzer:
             patterns['breakout_status'] = '未知'
         
         # 支撑阻力位
-        patterns['support_level'] = price.tail(20).min()
-        patterns['resistance_level'] = price.tail(20).max()
+        if len(price) >= 20:
+            patterns['support_level'] = price.tail(20).min()
+            patterns['resistance_level'] = price.tail(20).max()
+        else:
+            patterns['support_level'] = price.min() if len(price) > 0 else 0
+            patterns['resistance_level'] = price.max() if len(price) > 0 else 0
         
         return patterns
     

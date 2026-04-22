@@ -851,6 +851,54 @@ class StockAnalyzer:
 
 def main():
     """主函数 - 演示分析器功能"""
+    import sys
+    
+    # 检查是否有命令行参数
+    if len(sys.argv) > 1:
+        # 如果有命令行参数，直接分析指定的股票
+        symbol = sys.argv[1].strip().upper()
+        print(f"A股股票分析器 - 直接分析模式")
+        print("=" * 50)
+        
+        # 检查scipy是否可用
+        try:
+            import scipy
+            print(f"[OK] scipy 版本: {scipy.__version__}")
+        except ImportError:
+            print("[警告] scipy 未安装，模式识别功能将受限")
+        
+        try:
+            # 创建分析器
+            analyzer = StockAnalyzer()
+            
+            # 验证股票代码格式
+            if not (symbol.endswith('.SZ') or symbol.endswith('.SH') or symbol.endswith('.BJ')):
+                print(f"[错误] 股票代码 {symbol} 格式不正确")
+                print("股票代码应以 .SZ、.SH 或 .BJ 结尾")
+                print("例如: 000001.SZ, 600000.SH, 430001.BJ")
+                sys.exit(1)
+            
+            print(f"\n[分析] 正在分析 {symbol}...")
+            result = analyzer.analyze_single_stock(symbol)
+            if result:
+                analyzer.print_analysis_report(result)
+            else:
+                print(f"[错误] 无法分析 {symbol}")
+                print("可能原因:")
+                print("1. 数据文件中没有该股票的数据")
+                print("2. 股票代码格式不正确")
+                print("3. 数据文件可能不完整")
+                sys.exit(1)
+            
+            sys.exit(0)
+            
+        except Exception as e:
+            print(f"[错误] 运行过程中出现错误: {e}")
+            import traceback
+            traceback.print_exc()
+            sys.exit(1)
+    
+    # 如果没有命令行参数，进入交互式模式
     print("A股股票分析器演示")
     print("=" * 50)
     
@@ -918,6 +966,7 @@ def main():
             print("2. 输入股票代码进行分析")
             print("3. 显示市场统计信息")
             print("4. 退出")
+            print("提示: 也可以直接运行 'py stock_analyzer.py 股票代码' 进行分析")
             
             try:
                 # 确保提示立即显示

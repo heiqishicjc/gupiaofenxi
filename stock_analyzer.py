@@ -919,7 +919,15 @@ def main():
             print("3. 显示市场统计信息")
             print("4. 退出")
             
-            choice = input("\n请输入选项 (1-4): ").strip()
+            try:
+                choice = input("\n请输入选项 (1-4): ").strip()
+            except (EOFError, KeyboardInterrupt):
+                print("\n[再见] 检测到退出信号，感谢使用 A股股票分析器，再见！")
+                break
+            
+            if choice == '':
+                print("[提示] 请输入选项编号 (1-4)")
+                continue
             
             if choice == '1':
                 # 示例股票分析
@@ -934,7 +942,12 @@ def main():
             
             elif choice == '2':
                 # 用户输入股票代码
-                symbol = input("请输入股票代码 (例如: 000001.SZ): ").strip().upper()
+                try:
+                    symbol = input("请输入股票代码 (例如: 000001.SZ): ").strip().upper()
+                except (EOFError, KeyboardInterrupt):
+                    print("\n[提示] 已取消输入，返回主菜单")
+                    continue
+                
                 if not symbol:
                     print("[错误] 股票代码不能为空")
                     continue
@@ -946,7 +959,12 @@ def main():
                     continue
                 
                 # 获取股票名称（如果有）
-                name = input("请输入股票名称 (可选，按Enter跳过): ").strip()
+                try:
+                    name = input("请输入股票名称 (可选，按Enter跳过): ").strip()
+                except (EOFError, KeyboardInterrupt):
+                    print("\n[提示] 已取消输入，使用股票代码作为名称")
+                    name = symbol
+                
                 if not name:
                     name = symbol
                 
@@ -967,7 +985,7 @@ def main():
                 break
             
             else:
-                print("[错误] 无效选项，请重新输入")
+                print(f"[错误] 无效选项 '{choice}'，请输入 1-4 之间的数字")
                 
     except Exception as e:
         print(f"[错误] 运行过程中出现错误: {e}")
@@ -980,6 +998,20 @@ def main():
 
 
 if __name__ == "__main__":
+    # 尝试设置控制台编码为UTF-8，以支持中文显示
+    import sys
+    import io
+    
+    # 对于Windows，尝试设置控制台编码
+    if sys.platform == "win32":
+        try:
+            # 尝试设置控制台输出编码
+            import codecs
+            sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding='utf-8', errors='replace')
+            sys.stderr = io.TextIOWrapper(sys.stderr.buffer, encoding='utf-8', errors='replace')
+        except:
+            pass
+    
     # 检查基本依赖
     try:
         import pandas as pd

@@ -55,8 +55,8 @@ class StockAnalyzer:
         # 加载市场数据
         self._load_market_data()
         
-        print("✅ A股股票分析器初始化完成")
-        print(f"📁 数据目录: {data_dir}")
+        print("[OK] A股股票分析器初始化完成")
+        print(f"[文件夹] 数据目录: {data_dir}")
         
         # 显示可用数据统计
         self.show_data_statistics()
@@ -85,7 +85,7 @@ class StockAnalyzer:
     
     def show_data_statistics(self):
         """显示数据统计信息"""
-        print("\n📊 数据统计信息:")
+        print("\n[数据统计] 数据统计信息:")
         print("=" * 50)
         
         for market_name, data in self.market_data.items():
@@ -111,7 +111,7 @@ class StockAnalyzer:
         Returns:
             dict: 分析结果
         """
-        print(f"\n🔍 开始分析股票: {symbol}")
+        print(f"\n[分析] 开始分析股票: {symbol}")
         print("-" * 40)
         
         # 自动检测市场
@@ -129,7 +129,7 @@ class StockAnalyzer:
             print(f"错误: 无法获取 {symbol} 的数据")
             return None
         
-        print(f"✅ 成功获取数据: {len(stock_data)} 个交易日")
+        print(f"[OK] 成功获取数据: {len(stock_data)} 个交易日")
         
         # 执行分析
         analysis_result = self._perform_analysis(stock_data, symbol)
@@ -174,39 +174,39 @@ class StockAnalyzer:
         }
         
         # 1. 基础统计分析
-        print("1️⃣ 执行基础统计分析...")
+        print("[1/9] 执行基础统计分析...")
         analysis_result['basic_stats'] = self._calculate_basic_stats(data)
         
         # 2. 技术指标分析
-        print("2️⃣ 计算技术指标...")
+        print("[2/9] 计算技术指标...")
         analysis_result['technical_indicators'] = self._calculate_technical_indicators(data)
         
         # 3. 趋势分析
-        print("3️⃣ 分析趋势...")
+        print("[3/9] 分析趋势...")
         analysis_result['trend_analysis'] = self._analyze_trend(data)
         
         # 4. 风险评估
-        print("4️⃣ 评估风险...")
+        print("[4/9] 评估风险...")
         analysis_result['risk_assessment'] = self._assess_risk(data)
         
         # 5. 资金流向分析
-        print("5️⃣ 分析资金流向...")
+        print("[5/9] 分析资金流向...")
         analysis_result['money_flow'] = self._analyze_money_flow(data)
         
         # 6. 相对强度分析
-        print("6️⃣ 计算相对强度...")
+        print("[6/9] 计算相对强度...")
         analysis_result['relative_strength'] = self._calculate_relative_strength(data)
         
         # 7. 模式识别
-        print("7️⃣ 识别价格模式...")
+        print("[7/9] 识别价格模式...")
         analysis_result['pattern_recognition'] = self._recognize_price_patterns(data)
         
         # 8. 市场情绪分析
-        print("8️⃣ 分析市场情绪...")
+        print("[8/9] 分析市场情绪...")
         analysis_result['market_sentiment'] = self._analyze_market_sentiment(data)
         
         # 9. 投资建议
-        print("9️⃣ 生成投资建议...")
+        print("[9/9] 生成投资建议...")
         analysis_result['investment_advice'] = self._generate_advice(analysis_result)
         
         return analysis_result
@@ -797,17 +797,17 @@ class StockAnalyzer:
     def print_analysis_report(self, analysis_result):
         """打印分析报告"""
         if analysis_result is None:
-            print("❌ 分析结果为空")
+            print("[错误] 分析结果为空")
             return
         
-        print(f"\n📈 股票分析报告 - {analysis_result['symbol']}")
+        print(f"\n[报告] 股票分析报告 - {analysis_result['symbol']}")
         print("=" * 60)
         print(f"分析时间: {analysis_result['analysis_date']}")
         print(f"数据期间: {analysis_result['data_period']}")
         print(f"总交易日: {analysis_result['total_days']}")
         
         # 基础统计
-        print("\n📊 基础统计:")
+        print("\n[基础统计] 基础统计:")
         stats = analysis_result['basic_stats']['price_stats']
         print(f"   当前价格: {stats['current_price']:.2f}")
         print(f"   日涨跌: {stats['price_change_1d']:.2f} ({stats['price_change_1d_pct']:.2f}%)")
@@ -816,7 +816,7 @@ class StockAnalyzer:
         print(f"   52周最低: {stats['low_52w']:.2f}")
         
         # 技术指标
-        print("\n📈 技术指标:")
+        print("\n[技术指标] 技术指标:")
         tech = analysis_result['technical_indicators']
         print(f"   MA5: {tech['moving_averages']['ma5']:.2f}")
         print(f"   MA20: {tech['moving_averages']['ma20']:.2f}")
@@ -824,14 +824,14 @@ class StockAnalyzer:
         print(f"   MACD: {tech['macd']['macd']:.4f}")
         
         # 趋势分析
-        print("\n📅 趋势分析:")
+        print("\n[趋势分析] 趋势分析:")
         trend = analysis_result['trend_analysis']
         print(f"   短期趋势: {trend['short_term']['direction']} (强度: {trend['short_term']['strength']:.2f}%)")
         print(f"   中期趋势: {trend['medium_term']['direction']} (强度: {trend['medium_term']['strength']:.2f}%)")
         print(f"   趋势一致性: {trend['consistency']}")
         
         # 风险评估
-        print("\n⚠️  风险评估:")
+        print("\n[风险评估] 风险评估:")
         risk = analysis_result['risk_assessment']
         print(f"   波动率风险: {risk['volatility_risk']}")
         print(f"   回撤风险: {risk['drawdown_risk']}")
@@ -839,7 +839,7 @@ class StockAnalyzer:
         print(f"   总体风险: {risk['overall_risk']}")
         
         # 投资建议
-        print("\n💡 投资建议:")
+        print("\n[投资建议] 投资建议:")
         advice = analysis_result['investment_advice']
         print(f"   技术信号: {advice['technical_signal']}")
         print(f"   趋势信号: {advice['trend_signal']}")
@@ -857,10 +857,10 @@ def main():
     # 检查scipy是否可用
     try:
         import scipy
-        print(f"✅ scipy 版本: {scipy.__version__}")
+        print(f"[OK] scipy 版本: {scipy.__version__}")
         HAS_SCIPY = True
     except ImportError:
-        print("⚠️  scipy 未安装，模式识别功能将受限")
+        print("[警告] scipy 未安装，模式识别功能将受限")
         print("   如需完整功能，请运行: pip install scipy")
         HAS_SCIPY = False
     
@@ -870,7 +870,7 @@ def main():
         
         # 检查是否有市场数据
         if not analyzer.market_data:
-            print("⚠️  警告: 未找到任何市场数据文件")
+            print("[警告] 未找到任何市场数据文件")
             print("请确保以下文件存在于 e:/stockdata 目录中:")
             print("  - stocksz.csv (深圳股市)")
             print("  - stocksh.csv (上海股市)")
@@ -905,7 +905,7 @@ def main():
             
             df = pd.DataFrame(sample_data)
             df.to_csv(os.path.join(data_dir, 'stocksz.csv'), index=False)
-            print("✅ 已创建示例数据文件: stocksz.csv")
+            print("[OK] 已创建示例数据文件: stocksz.csv")
             
             # 重新加载数据
             analyzer._load_market_data()
@@ -925,23 +925,23 @@ def main():
                 # 示例股票分析
                 symbol = '000001.SZ'
                 name = '平安银行'
-                print(f"\n📊 正在分析 {name} ({symbol})...")
+                print(f"\n[分析] 正在分析 {name} ({symbol})...")
                 result = analyzer.analyze_single_stock(symbol)
                 if result:
                     analyzer.print_analysis_report(result)
                 else:
-                    print(f"❌ 无法分析 {symbol}，跳过...")
+                    print(f"[错误] 无法分析 {symbol}，跳过...")
             
             elif choice == '2':
                 # 用户输入股票代码
                 symbol = input("请输入股票代码 (例如: 000001.SZ): ").strip().upper()
                 if not symbol:
-                    print("❌ 股票代码不能为空")
+                    print("[错误] 股票代码不能为空")
                     continue
                 
                 # 验证股票代码格式
                 if not (symbol.endswith('.SZ') or symbol.endswith('.SH') or symbol.endswith('.BJ')):
-                    print("⚠️  股票代码应以 .SZ、.SH 或 .BJ 结尾")
+                    print("[警告] 股票代码应以 .SZ、.SH 或 .BJ 结尾")
                     print("   例如: 000001.SZ, 600000.SH, 430001.BJ")
                     continue
                 
@@ -950,12 +950,12 @@ def main():
                 if not name:
                     name = symbol
                 
-                print(f"\n📊 正在分析 {name} ({symbol})...")
+                print(f"\n[分析] 正在分析 {name} ({symbol})...")
                 result = analyzer.analyze_single_stock(symbol)
                 if result:
                     analyzer.print_analysis_report(result)
                 else:
-                    print(f"❌ 无法分析 {symbol}，可能数据文件中没有该股票的数据")
+                    print(f"[错误] 无法分析 {symbol}，可能数据文件中没有该股票的数据")
                     print("   请确保数据文件包含该股票的信息")
             
             elif choice == '3':
@@ -963,17 +963,17 @@ def main():
                 analyzer.show_data_statistics()
             
             elif choice == '4':
-                print("👋 感谢使用 A股股票分析器，再见！")
+                print("[再见] 感谢使用 A股股票分析器，再见！")
                 break
             
             else:
-                print("❌ 无效选项，请重新输入")
+                print("[错误] 无效选项，请重新输入")
                 
     except Exception as e:
-        print(f"❌ 运行过程中出现错误: {e}")
+        print(f"[错误] 运行过程中出现错误: {e}")
         import traceback
         traceback.print_exc()
-        print("\n💡 建议:")
+        print("\n[建议] 建议:")
         print("1. 确保已安装所需依赖: pip install pandas numpy")
         print("2. 如果需要模式识别功能: pip install scipy")
         print("3. 检查数据目录是否存在: e:/stockdata")
@@ -984,15 +984,15 @@ if __name__ == "__main__":
     try:
         import pandas as pd
         import numpy as np
-        print("✅ 基本依赖检查通过")
+        print("[OK] 基本依赖检查通过")
     except ImportError as e:
-        print(f"❌ 缺少必要依赖: {e}")
+        print(f"[错误] 缺少必要依赖: {e}")
         print("请运行: pip install pandas numpy")
         sys.exit(1)
     
     main()
     
-    print("\n💡 提示:")
+    print("\n[提示] 提示:")
     print("1. 要分析其他股票，请修改 main() 函数中的 sample_stocks 列表")
     print("2. 确保数据文件位于 e:/stockdata 目录中")
     print("3. 如需完整功能，建议安装: pip install scipy")

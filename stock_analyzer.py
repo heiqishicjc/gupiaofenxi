@@ -877,6 +877,7 @@ def main():
         symbol = sys.argv[1].strip().upper()
         print(f"A股股票分析器 - 直接分析模式")
         print("=" * 50)
+        sys.stdout.flush()
         
         # 检查scipy是否可用
         try:
@@ -919,6 +920,7 @@ def main():
     # 如果没有命令行参数，进入交互式模式
     print("A股股票分析器演示")
     print("=" * 50)
+    sys.stdout.flush()
     
     # 检查scipy是否可用
     try:
@@ -933,6 +935,7 @@ def main():
     try:
         # 创建分析器
         analyzer = StockAnalyzer()
+        sys.stdout.flush()
         
         # 检查是否有市场数据
         if not analyzer.market_data:

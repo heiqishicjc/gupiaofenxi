@@ -176,8 +176,24 @@ class StockAnalyzer:
         print("4️⃣ 评估风险...")
         analysis_result['risk_assessment'] = self._assess_risk(data)
         
-        # 5. 投资建议
-        print("5️⃣ 生成投资建议...")
+        # 5. 资金流向分析
+        print("5️⃣ 分析资金流向...")
+        analysis_result['money_flow'] = self._analyze_money_flow(data)
+        
+        # 6. 相对强度分析
+        print("6️⃣ 计算相对强度...")
+        analysis_result['relative_strength'] = self._calculate_relative_strength(data)
+        
+        # 7. 模式识别
+        print("7️⃣ 识别价格模式...")
+        analysis_result['pattern_recognition'] = self._recognize_price_patterns(data)
+        
+        # 8. 市场情绪分析
+        print("8️⃣ 分析市场情绪...")
+        analysis_result['market_sentiment'] = self._analyze_market_sentiment(data)
+        
+        # 9. 投资建议
+        print("9️⃣ 生成投资建议...")
         analysis_result['investment_advice'] = self._generate_advice(analysis_result)
         
         return analysis_result
@@ -194,10 +210,14 @@ class StockAnalyzer:
             'price_change_5d': data['close'].iloc[-1] - data['close'].iloc[-6],
             'price_change_5d_pct': ((data['close'].iloc[-1] - data['close'].iloc[-6]) / data['close'].iloc[-6]) * 100,
             'price_change_1m': data['close'].iloc[-1] - data['close'].iloc[-22] if len(data) > 22 else None,
+            'price_change_3m': data['close'].iloc[-1] - data['close'].iloc[-66] if len(data) > 66 else None,
+            'price_change_6m': data['close'].iloc[-1] - data['close'].iloc[-132] if len(data) > 132 else None,
+            'price_change_1y': data['close'].iloc[-1] - data['close'].iloc[-252] if len(data) > 252 else None,
             'high_52w': data['high'].max(),
             'low_52w': data['low'].min(),
             'avg_volume': data['vol'].mean(),
-            'avg_amount': data['amount'].mean()
+            'avg_amount': data['amount'].mean(),
+            'volume_ratio': data['vol'].iloc[-1] / data['vol'].rolling(20).mean().iloc[-1] if len(data) >= 20 else None
         }
         
         # 波动率统计
@@ -206,7 +226,17 @@ class StockAnalyzer:
             'daily_volatility': returns.std() * 100,  # 百分比
             'annual_volatility': returns.std() * np.sqrt(252) * 100,
             'max_drawdown': self._calculate_max_drawdown(data['close']),
-            'sharpe_ratio': returns.mean() / returns.std() * np.sqrt(252) if returns.std() > 0 else 0
+            'sharpe_ratio': returns.mean() / returns.std() * np.sqrt(252) if returns.std() > 0 else 0,
+            'sortino_ratio': self._calculate_sortino_ratio(returns),
+            'var_95': np.percentile(returns, 5) * 100  # 95% VaR
+        }
+        
+        # 分布统计
+        stats['distribution_stats'] = {
+            'skewness': returns.skew(),
+            'kurtosis': returns.kurtosis(),
+            'positive_days': (returns > 0).sum() / len(returns) * 100,
+            'negative_days': (returns < 0).sum() / len(returns) * 100
         }
         
         return stats
@@ -345,6 +375,175 @@ class StockAnalyzer:
         drawdown = (prices - peak) / peak
         return drawdown.min()
     
+    def _calculate_sortino_ratio(self, returns):
+        """计算索提诺比率"""
+        if len(returns) == 0:
+            return 0
+        negative_returns = returns[returns < 0]
+        if len(negative_returns) == 0:
+            return 0
+        downside_std = negative_returns.std()
+        if downside_std == 0:
+            return 0
+        return returns.mean() / downside_std * np.sqrt(252)
+    
+    def _analyze_money_flow(self, data):
+        """分析资金流向"""
+        # 计算资金流向指标
+        money_flow = {}
+        
+        # 典型价格
+        typical_price = (data['high'] + data['low'] + data['close']) / 3
+        # 资金流
+        money_flow_raw = typical_price * data['vol']
+        
+        # 计算净资金流
+        positive_flow = money_flow_raw[data['close'] > data['close'].shift(1)].sum()
+        negative_flow = money_flow_raw[data['close'] < data['close'].shift(1)].sum()
+        
+        net_flow = positive_flow - negative_flow
+        money_flow['positive_money_flow'] = positive_flow
+        money_flow['negative_money_flow'] = negative_flow
+        money_flow['net_money_flow'] = net_flow
+        money_flow['net_money_flow_status'] = '净流入' if net_flow > 0 else '净流出'
+        
+        # 资金流比率
+        if negative_flow != 0:
+            money_flow['money_flow_ratio'] = positive_flow / abs(negative_flow)
+        else:
+            money_flow['money_flow_ratio'] = float('inf') if positive_flow > 0 else 0
+        
+        # 资金流趋势
+        money_flow_series = typical_price * data['vol']
+        money_flow_ma5 = money_flow_series.rolling(5).mean()
+        money_flow_ma20 = money_flow_series.rolling(20).mean()
+        
+        money_flow['money_flow_trend'] = '上升' if money_flow_ma5.iloc[-1] > money_flow_ma20.iloc[-1] else '下降'
+        
+        return money_flow
+    
+    def _calculate_relative_strength(self, data):
+        """计算相对强度"""
+        rs = {}
+        
+        # 计算相对于自身均值的强度
+        price = data['close']
+        ma20 = price.rolling(20).mean()
+        ma60 = price.rolling(60).mean()
+        
+        rs['vs_ma20'] = (price.iloc[-1] / ma20.iloc[-1] - 1) * 100
+        rs['vs_ma60'] = (price.iloc[-1] / ma60.iloc[-1] - 1) * 100
+        
+        # 计算相对强度评级 (0-100)
+        # 基于近期表现
+        recent_return = (price.iloc[-1] / price.iloc[-20] - 1) * 100 if len(price) >= 20 else 0
+        # 标准化到0-100
+        rs_rating = min(max((recent_return + 20) / 40 * 100, 0), 100)  # 假设-20%到+20%映射到0-100
+        rs['rs_rating'] = rs_rating
+        
+        # 强度分类
+        if rs_rating >= 70:
+            rs['strength_category'] = '强'
+        elif rs_rating >= 30:
+            rs['strength_category'] = '中'
+        else:
+            rs['strength_category'] = '弱'
+        
+        return rs
+    
+    def _recognize_price_patterns(self, data):
+        """识别价格模式"""
+        patterns = {}
+        
+        # 检查双顶/双底
+        price = data['close']
+        recent_prices = price.tail(60)
+        
+        # 寻找局部极值点
+        from scipy.signal import argrelextrema
+        import numpy as np
+        
+        try:
+            # 局部最大值
+            max_indices = argrelextrema(recent_prices.values, np.greater, order=5)[0]
+            # 局部最小值
+            min_indices = argrelextrema(recent_prices.values, np.less, order=5)[0]
+            
+            patterns['local_max_count'] = len(max_indices)
+            patterns['local_min_count'] = len(min_indices)
+            
+            # 检查是否形成头肩形态
+            if len(max_indices) >= 3:
+                patterns['potential_head_shoulders'] = '可能'
+            else:
+                patterns['potential_head_shoulders'] = '未识别'
+            
+            # 检查趋势线突破
+            # 简单实现：检查价格是否突破近期高/低点
+            recent_high = recent_prices.max()
+            recent_low = recent_prices.min()
+            current_price = price.iloc[-1]
+            
+            if current_price >= recent_high * 0.98:
+                patterns['breakout_status'] = '接近突破高点'
+            elif current_price <= recent_low * 1.02:
+                patterns['breakout_status'] = '接近突破低点'
+            else:
+                patterns['breakout_status'] = '区间震荡'
+                
+        except Exception as e:
+            patterns['error'] = str(e)
+            patterns['potential_head_shoulders'] = '计算错误'
+            patterns['breakout_status'] = '未知'
+        
+        # 支撑阻力位
+        patterns['support_level'] = price.tail(20).min()
+        patterns['resistance_level'] = price.tail(20).max()
+        
+        return patterns
+    
+    def _analyze_market_sentiment(self, data):
+        """分析市场情绪"""
+        sentiment = {}
+        
+        # 基于价格和成交量
+        price = data['close']
+        volume = data['vol']
+        
+        # 价格动量
+        price_change_5d = (price.iloc[-1] / price.iloc[-5] - 1) * 100 if len(price) >= 5 else 0
+        price_change_20d = (price.iloc[-1] / price.iloc[-20] - 1) * 100 if len(price) >= 20 else 0
+        
+        sentiment['price_momentum_5d'] = price_change_5d
+        sentiment['price_momentum_20d'] = price_change_20d
+        
+        # 成交量情绪
+        volume_ratio = volume.iloc[-1] / volume.rolling(20).mean().iloc[-1] if len(volume) >= 20 else 1
+        sentiment['volume_ratio'] = volume_ratio
+        
+        # 情绪分数
+        sentiment_score = 0
+        if price_change_5d > 0:
+            sentiment_score += 1
+        if price_change_20d > 0:
+            sentiment_score += 1
+        if volume_ratio > 1.2:
+            sentiment_score += 1
+        if volume_ratio < 0.8:
+            sentiment_score -= 1
+        
+        sentiment['sentiment_score'] = sentiment_score
+        
+        # 情绪分类
+        if sentiment_score >= 2:
+            sentiment['sentiment_category'] = '乐观'
+        elif sentiment_score <= -1:
+            sentiment['sentiment_category'] = '悲观'
+        else:
+            sentiment['sentiment_category'] = '中性'
+        
+        return sentiment
+    
     def _generate_advice(self, analysis_result):
         """生成投资建议"""
         advice = {}
@@ -353,15 +552,37 @@ class StockAnalyzer:
         technical = analysis_result['technical_indicators']
         trend = analysis_result['trend_analysis']
         risk = analysis_result['risk_assessment']
+        money_flow = analysis_result.get('money_flow', {})
+        relative_strength = analysis_result.get('relative_strength', {})
+        pattern = analysis_result.get('pattern_recognition', {})
+        sentiment = analysis_result.get('market_sentiment', {})
         
         # 技术面建议
         current_price = basic_stats['price_stats']['current_price']
         ma20 = technical['moving_averages']['ma20']
         rsi = technical['rsi']
+        macd_hist = technical['macd']['histogram']
         
-        if current_price > ma20 and rsi < 70:
+        tech_signals = []
+        if current_price > ma20:
+            tech_signals.append('价格在MA20之上')
+        if rsi < 70:
+            tech_signals.append('RSI未超买')
+        if rsi > 30:
+            tech_signals.append('RSI未超卖')
+        if macd_hist > 0:
+            tech_signals.append('MACD柱状图为正')
+        
+        # 综合技术信号
+        tech_score = sum([
+            1 if current_price > ma20 else -1,
+            1 if 30 < rsi < 70 else 0,
+            1 if macd_hist > 0 else -1
+        ])
+        
+        if tech_score >= 2:
             advice['technical_signal'] = '买入信号'
-        elif current_price < ma20 and rsi > 30:
+        elif tech_score <= -2:
             advice['technical_signal'] = '卖出信号'
         else:
             advice['technical_signal'] = '持有观望'
@@ -382,14 +603,49 @@ class StockAnalyzer:
         else:
             advice['risk_signal'] = '风险较高，谨慎投资'
         
+        # 资金流向建议
+        if money_flow.get('net_money_flow_status') == '净流入':
+            advice['money_flow_signal'] = '资金净流入，积极信号'
+        elif money_flow.get('net_money_flow_status') == '净流出':
+            advice['money_flow_signal'] = '资金净流出，谨慎信号'
+        else:
+            advice['money_flow_signal'] = '资金流向中性'
+        
+        # 相对强度建议
+        if relative_strength.get('rs_rating', 0) > 70:
+            advice['relative_strength_signal'] = '相对强度强，表现优于市场'
+        elif relative_strength.get('rs_rating', 0) < 30:
+            advice['relative_strength_signal'] = '相对强度弱，表现劣于市场'
+        else:
+            advice['relative_strength_signal'] = '相对强度中等'
+        
         # 综合建议
-        if (advice['technical_signal'] == '买入信号' and 
-            advice['trend_signal'] == '趋势向上，建议关注' and
-            advice['risk_signal'] == '风险较低，适合投资'):
+        positive_signals = 0
+        negative_signals = 0
+        
+        if advice['technical_signal'] == '买入信号':
+            positive_signals += 1
+        elif advice['technical_signal'] == '卖出信号':
+            negative_signals += 1
+            
+        if advice['trend_signal'] == '趋势向上，建议关注':
+            positive_signals += 1
+        elif advice['trend_signal'] == '趋势向下，谨慎操作':
+            negative_signals += 1
+            
+        if advice['money_flow_signal'] == '资金净流入，积极信号':
+            positive_signals += 1
+        elif advice['money_flow_signal'] == '资金净流出，谨慎信号':
+            negative_signals += 1
+        
+        if positive_signals >= 2 and negative_signals == 0:
             advice['overall_advice'] = '强烈推荐买入'
-        elif (advice['technical_signal'] == '卖出信号' and 
-              advice['trend_signal'] == '趋势向下，谨慎操作'):
+        elif negative_signals >= 2 and positive_signals == 0:
             advice['overall_advice'] = '建议卖出'
+        elif positive_signals > negative_signals:
+            advice['overall_advice'] = '谨慎买入'
+        elif negative_signals > positive_signals:
+            advice['overall_advice'] = '谨慎卖出'
         else:
             advice['overall_advice'] = '持有观望'
         

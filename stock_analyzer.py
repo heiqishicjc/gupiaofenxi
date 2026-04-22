@@ -878,6 +878,7 @@ def main():
         print(f"A股股票分析器 - 直接分析模式")
         print("=" * 50)
         sys.stdout.flush()
+        sys.stdout.flush()
         
         # 检查scipy是否可用
         try:
@@ -921,6 +922,7 @@ def main():
     print("A股股票分析器演示")
     print("=" * 50)
     sys.stdout.flush()
+    sys.stdout.flush()
     
     # 检查scipy是否可用
     try:
@@ -935,6 +937,7 @@ def main():
     try:
         # 创建分析器
         analyzer = StockAnalyzer()
+        sys.stdout.flush()
         sys.stdout.flush()
         
         # 检查是否有市场数据

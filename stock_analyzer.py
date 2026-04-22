@@ -76,12 +76,12 @@ class StockAnalyzer:
                 if os.path.exists(file_path):
                     df = pd.read_csv(file_path)
                     self.market_data[market_name] = df
-                    print(f"成功加载 {market_name} 数据: {len(df)} 条记录")
+                    print(f"[OK] 成功加载 {market_name} 数据: {len(df)} 条记录")
                 else:
-                    print(f"警告: {market_name} 数据文件不存在")
+                    print(f"[警告] {market_name} 数据文件不存在")
                     
             except Exception as e:
-                print(f"加载 {market_name} 数据失败: {e}")
+                print(f"[错误] 加载 {market_name} 数据失败: {e}")
     
     def show_data_statistics(self):
         """显示数据统计信息"""

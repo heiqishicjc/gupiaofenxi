@@ -920,13 +920,17 @@ def main():
             print("4. 退出")
             
             try:
+                # 确保提示立即显示
+                import sys
+                sys.stdout.flush()
                 choice = input("\n请输入选项 (1-4): ").strip()
             except (EOFError, KeyboardInterrupt):
                 print("\n[再见] 检测到退出信号，感谢使用 A股股票分析器，再见！")
                 break
             
             if choice == '':
-                print("[提示] 请输入选项编号 (1-4)")
+                print("[提示] 检测到空输入，请输入选项编号 (1-4)")
+                print("[提示] 直接按回车将重新显示菜单")
                 continue
             
             if choice == '1':
@@ -943,6 +947,7 @@ def main():
             elif choice == '2':
                 # 用户输入股票代码
                 try:
+                    sys.stdout.flush()
                     symbol = input("请输入股票代码 (例如: 000001.SZ): ").strip().upper()
                 except (EOFError, KeyboardInterrupt):
                     print("\n[提示] 已取消输入，返回主菜单")
@@ -950,16 +955,19 @@ def main():
                 
                 if not symbol:
                     print("[错误] 股票代码不能为空")
+                    print("[提示] 请输入有效的股票代码，如 000001.SZ, 600000.SH")
                     continue
                 
                 # 验证股票代码格式
                 if not (symbol.endswith('.SZ') or symbol.endswith('.SH') or symbol.endswith('.BJ')):
                     print("[警告] 股票代码应以 .SZ、.SH 或 .BJ 结尾")
-                    print("   例如: 000001.SZ, 600000.SH, 430001.BJ")
+                    print("   例如: 000001.SZ (深圳), 600000.SH (上海), 430001.BJ (北京)")
+                    print("   请重新输入正确的股票代码格式")
                     continue
                 
                 # 获取股票名称（如果有）
                 try:
+                    sys.stdout.flush()
                     name = input("请输入股票名称 (可选，按Enter跳过): ").strip()
                 except (EOFError, KeyboardInterrupt):
                     print("\n[提示] 已取消输入，使用股票代码作为名称")
@@ -975,6 +983,7 @@ def main():
                 else:
                     print(f"[错误] 无法分析 {symbol}，可能数据文件中没有该股票的数据")
                     print("   请确保数据文件包含该股票的信息")
+                    print("   注意: 股票代码必须与数据文件中的格式完全一致")
             
             elif choice == '3':
                 # 显示市场统计信息
@@ -986,6 +995,7 @@ def main():
             
             else:
                 print(f"[错误] 无效选项 '{choice}'，请输入 1-4 之间的数字")
+                print("[提示] 有效选项为: 1, 2, 3, 4")
                 
     except Exception as e:
         print(f"[错误] 运行过程中出现错误: {e}")
@@ -1007,9 +1017,13 @@ if __name__ == "__main__":
         try:
             # 尝试设置控制台输出编码
             import codecs
-            sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding='utf-8', errors='replace')
-            sys.stderr = io.TextIOWrapper(sys.stderr.buffer, encoding='utf-8', errors='replace')
-        except:
+            # 设置标准输出的编码
+            if sys.stdout.encoding != 'UTF-8':
+                sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding='utf-8', errors='replace')
+            if sys.stderr.encoding != 'UTF-8':
+                sys.stderr = io.TextIOWrapper(sys.stderr.buffer, encoding='utf-8', errors='replace')
+        except Exception as e:
+            # 如果设置失败，继续运行
             pass
     
     # 检查基本依赖
@@ -1022,9 +1036,18 @@ if __name__ == "__main__":
         print("请运行: pip install pandas numpy")
         sys.exit(1)
     
-    main()
+    # 运行主函数
+    try:
+        main()
+    except KeyboardInterrupt:
+        print("\n\n[再见] 程序被用户中断，感谢使用 A股股票分析器！")
+    except Exception as e:
+        print(f"\n[错误] 程序运行出现未预期错误: {e}")
+        import traceback
+        traceback.print_exc()
     
     print("\n[提示] 提示:")
-    print("1. 要分析其他股票，请修改 main() 函数中的 sample_stocks 列表")
+    print("1. 要分析其他股票，请使用选项2输入股票代码")
     print("2. 确保数据文件位于 e:/stockdata 目录中")
     print("3. 如需完整功能，建议安装: pip install scipy")
+    print("4. 按Ctrl+C可随时退出程序")

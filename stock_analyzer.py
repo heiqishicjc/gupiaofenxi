@@ -13,8 +13,16 @@ A股股票分析器 - 核心分析模块
 
 import sys
 import os
-import pandas as pd
-import numpy as np
+
+# 首先检查基本依赖
+try:
+    import pandas as pd
+    import numpy as np
+except ImportError as e:
+    print(f"[错误] 缺少必要依赖: {e}")
+    print("请运行: pip install pandas numpy")
+    sys.exit(1)
+
 from datetime import datetime, timedelta
 import warnings
 warnings.filterwarnings('ignore')

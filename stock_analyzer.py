@@ -870,6 +870,7 @@ def main():
         print("=" * 50)
         sys.stdout.flush()
         sys.stdout.flush()
+        sys.stdout.flush()
         
         # 检查scipy是否可用
         try:
@@ -914,6 +915,7 @@ def main():
     print("=" * 50)
     sys.stdout.flush()
     sys.stdout.flush()
+    sys.stdout.flush()
     
     # 检查scipy是否可用
     try:
@@ -928,6 +930,7 @@ def main():
     try:
         # 创建分析器
         analyzer = StockAnalyzer()
+        sys.stdout.flush()
         sys.stdout.flush()
         sys.stdout.flush()
         

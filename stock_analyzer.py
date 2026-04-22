@@ -555,11 +555,14 @@ class StockAnalyzer:
         
         # 寻找局部极值点
         try:
-            # 尝试导入 scipy
+            # 检查scipy是否可用
             try:
                 from scipy.signal import argrelextrema
-                import numpy as np
-                
+                HAS_SCIPY = True
+            except ImportError:
+                HAS_SCIPY = False
+            
+            if HAS_SCIPY:
                 if len(recent_prices) >= 10:
                     # 局部最大值
                     max_indices = argrelextrema(recent_prices.values, np.greater, order=5)[0]
@@ -574,16 +577,40 @@ class StockAnalyzer:
                         patterns['potential_head_shoulders'] = '可能'
                     else:
                         patterns['potential_head_shoulders'] = '未识别'
+                    
+                    # 检查双顶/双底模式
+                    if len(max_indices) >= 2:
+                        # 检查两个峰值是否接近
+                        peak_values = recent_prices.iloc[max_indices].values
+                        if len(peak_values) >= 2:
+                            peak_diff = abs(peak_values[-1] - peak_values[-2]) / peak_values[-2]
+                            if peak_diff < 0.05:  # 5% 以内
+                                patterns['double_top'] = '可能'
+                            else:
+                                patterns['double_top'] = '未识别'
+                    
+                    if len(min_indices) >= 2:
+                        # 检查两个谷底是否接近
+                        trough_values = recent_prices.iloc[min_indices].values
+                        if len(trough_values) >= 2:
+                            trough_diff = abs(trough_values[-1] - trough_values[-2]) / trough_values[-2]
+                            if trough_diff < 0.05:  # 5% 以内
+                                patterns['double_bottom'] = '可能'
+                            else:
+                                patterns['double_bottom'] = '未识别'
                 else:
                     patterns['local_max_count'] = 0
                     patterns['local_min_count'] = 0
                     patterns['potential_head_shoulders'] = '数据不足'
-                    
-            except ImportError:
+                    patterns['double_top'] = '数据不足'
+                    patterns['double_bottom'] = '数据不足'
+            else:
                 # scipy 不可用，使用简单方法
                 patterns['local_max_count'] = '需要scipy库'
                 patterns['local_min_count'] = '需要scipy库'
                 patterns['potential_head_shoulders'] = '需要scipy库'
+                patterns['double_top'] = '需要scipy库'
+                patterns['double_bottom'] = '需要scipy库'
             
             # 检查趋势线突破
             # 简单实现：检查价格是否突破近期高/低点
@@ -605,6 +632,8 @@ class StockAnalyzer:
             patterns['error'] = str(e)
             patterns['potential_head_shoulders'] = '计算错误'
             patterns['breakout_status'] = '未知'
+            patterns['double_top'] = '计算错误'
+            patterns['double_bottom'] = '计算错误'
         
         # 支撑阻力位
         if len(price) >= 20:
@@ -825,6 +854,16 @@ def main():
     print("A股股票分析器演示")
     print("=" * 50)
     
+    # 检查scipy是否可用
+    try:
+        import scipy
+        print(f"✅ scipy 版本: {scipy.__version__}")
+        HAS_SCIPY = True
+    except ImportError:
+        print("⚠️  scipy 未安装，模式识别功能将受限")
+        print("   如需完整功能，请运行: pip install scipy")
+        HAS_SCIPY = False
+    
     try:
         # 创建分析器
         analyzer = StockAnalyzer()
@@ -871,20 +910,65 @@ def main():
             # 重新加载数据
             analyzer._load_market_data()
         
-        # 示例股票分析
-        sample_stocks = [
-            ('000001.SZ', '平安银行'),
-        ]
-        
-        for symbol, name in sample_stocks:
-            print(f"\n📊 正在分析 {name} ({symbol})...")
-            result = analyzer.analyze_single_stock(symbol)
-            if result:
-                analyzer.print_analysis_report(result)
-            else:
-                print(f"❌ 无法分析 {symbol}，跳过...")
-            print("\n" + "="*60 + "\n")
+        # 交互式分析
+        while True:
+            print("\n" + "="*60)
+            print("请选择操作:")
+            print("1. 分析示例股票 (000001.SZ 平安银行)")
+            print("2. 输入股票代码进行分析")
+            print("3. 显示市场统计信息")
+            print("4. 退出")
             
+            choice = input("\n请输入选项 (1-4): ").strip()
+            
+            if choice == '1':
+                # 示例股票分析
+                symbol = '000001.SZ'
+                name = '平安银行'
+                print(f"\n📊 正在分析 {name} ({symbol})...")
+                result = analyzer.analyze_single_stock(symbol)
+                if result:
+                    analyzer.print_analysis_report(result)
+                else:
+                    print(f"❌ 无法分析 {symbol}，跳过...")
+            
+            elif choice == '2':
+                # 用户输入股票代码
+                symbol = input("请输入股票代码 (例如: 000001.SZ): ").strip().upper()
+                if not symbol:
+                    print("❌ 股票代码不能为空")
+                    continue
+                
+                # 验证股票代码格式
+                if not (symbol.endswith('.SZ') or symbol.endswith('.SH') or symbol.endswith('.BJ')):
+                    print("⚠️  股票代码应以 .SZ、.SH 或 .BJ 结尾")
+                    print("   例如: 000001.SZ, 600000.SH, 430001.BJ")
+                    continue
+                
+                # 获取股票名称（如果有）
+                name = input("请输入股票名称 (可选，按Enter跳过): ").strip()
+                if not name:
+                    name = symbol
+                
+                print(f"\n📊 正在分析 {name} ({symbol})...")
+                result = analyzer.analyze_single_stock(symbol)
+                if result:
+                    analyzer.print_analysis_report(result)
+                else:
+                    print(f"❌ 无法分析 {symbol}，可能数据文件中没有该股票的数据")
+                    print("   请确保数据文件包含该股票的信息")
+            
+            elif choice == '3':
+                # 显示市场统计信息
+                analyzer.show_data_statistics()
+            
+            elif choice == '4':
+                print("👋 感谢使用 A股股票分析器，再见！")
+                break
+            
+            else:
+                print("❌ 无效选项，请重新输入")
+                
     except Exception as e:
         print(f"❌ 运行过程中出现错误: {e}")
         import traceback

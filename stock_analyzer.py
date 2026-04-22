@@ -22,8 +22,13 @@ warnings.filterwarnings('ignore')
 # 添加src目录到Python路径
 sys.path.append(os.path.join(os.path.dirname(__file__), 'src'))
 
-from indicators.technical_indicators import TechnicalIndicators
-from visualization.chart_plotter import ChartPlotter
+try:
+    from indicators.technical_indicators import TechnicalIndicators
+    from visualization.chart_plotter import ChartPlotter
+    HAS_SRC_MODULES = True
+except ImportError:
+    print("⚠️  注意: 未找到 src 模块，部分功能可能受限")
+    HAS_SRC_MODULES = False
 
 
 class StockAnalyzer:
@@ -39,11 +44,19 @@ class StockAnalyzer:
         self.data_dir = data_dir
         self.market_data = {}
         
+        # 检查目录是否存在
+        import os
+        if not os.path.exists(data_dir):
+            print(f"⚠️  注意: 数据目录 {data_dir} 不存在")
+            print(f"将尝试创建目录...")
+            os.makedirs(data_dir, exist_ok=True)
+            print(f"✅ 已创建目录: {data_dir}")
+        
         # 加载市场数据
         self._load_market_data()
         
-        print("A股股票分析器初始化完成")
-        print(f"数据目录: {data_dir}")
+        print("✅ A股股票分析器初始化完成")
+        print(f"📁 数据目录: {data_dir}")
         
         # 显示可用数据统计
         self.show_data_statistics()
@@ -460,23 +473,31 @@ class StockAnalyzer:
         recent_prices = price.tail(60)
         
         # 寻找局部极值点
-        from scipy.signal import argrelextrema
-        import numpy as np
-        
         try:
-            # 局部最大值
-            max_indices = argrelextrema(recent_prices.values, np.greater, order=5)[0]
-            # 局部最小值
-            min_indices = argrelextrema(recent_prices.values, np.less, order=5)[0]
-            
-            patterns['local_max_count'] = len(max_indices)
-            patterns['local_min_count'] = len(min_indices)
-            
-            # 检查是否形成头肩形态
-            if len(max_indices) >= 3:
-                patterns['potential_head_shoulders'] = '可能'
-            else:
-                patterns['potential_head_shoulders'] = '未识别'
+            # 尝试导入 scipy，如果不可用则使用备用方法
+            try:
+                from scipy.signal import argrelextrema
+                import numpy as np
+                
+                # 局部最大值
+                max_indices = argrelextrema(recent_prices.values, np.greater, order=5)[0]
+                # 局部最小值
+                min_indices = argrelextrema(recent_prices.values, np.less, order=5)[0]
+                
+                patterns['local_max_count'] = len(max_indices)
+                patterns['local_min_count'] = len(min_indices)
+                
+                # 检查是否形成头肩形态
+                if len(max_indices) >= 3:
+                    patterns['potential_head_shoulders'] = '可能'
+                else:
+                    patterns['potential_head_shoulders'] = '未识别'
+                    
+            except ImportError:
+                # scipy 不可用，使用简单方法
+                patterns['local_max_count'] = '需要scipy库'
+                patterns['local_min_count'] = '需要scipy库'
+                patterns['potential_head_shoulders'] = '需要scipy库'
             
             # 检查趋势线突破
             # 简单实现：检查价格是否突破近期高/低点
@@ -711,22 +732,90 @@ def main():
     print("A股股票分析器演示")
     print("=" * 50)
     
-    # 创建分析器
-    analyzer = StockAnalyzer()
-    
-    # 示例股票分析
-    sample_stocks = [
-        ('000001.SZ', '平安银行'),
-        ('600519.SH', '贵州茅台'),
-        ('000858.SZ', '五粮液')
-    ]
-    
-    for symbol, name in sample_stocks:
-        result = analyzer.analyze_single_stock(symbol)
-        if result:
-            analyzer.print_analysis_report(result)
-        print("\n" + "="*60 + "\n")
+    try:
+        # 创建分析器
+        analyzer = StockAnalyzer()
+        
+        # 检查是否有市场数据
+        if not analyzer.market_data:
+            print("⚠️  警告: 未找到任何市场数据文件")
+            print("请确保以下文件存在于 e:/stockdata 目录中:")
+            print("  - stocksz.csv (深圳股市)")
+            print("  - stocksh.csv (上海股市)")
+            print("  - stockother.csv (其他股市)")
+            print("\n正在创建示例数据文件以供演示...")
+            
+            # 创建示例数据目录
+            import os
+            data_dir = "e:/stockdata"
+            os.makedirs(data_dir, exist_ok=True)
+            
+            # 创建示例数据文件
+            import pandas as pd
+            from datetime import datetime, timedelta
+            
+            # 生成示例数据
+            dates = pd.date_range(end=datetime.now(), periods=100, freq='D')
+            
+            # 示例股票数据
+            sample_data = []
+            for i, date in enumerate(dates):
+                sample_data.append({
+                    'ts_code': '000001.SZ',
+                    'trade_date': date.strftime('%Y%m%d'),
+                    'open': 10.0 + i * 0.01,
+                    'high': 10.5 + i * 0.01,
+                    'low': 9.5 + i * 0.01,
+                    'close': 10.0 + i * 0.02,
+                    'vol': 1000000 + i * 10000,
+                    'amount': 10000000 + i * 100000
+                })
+            
+            df = pd.DataFrame(sample_data)
+            df.to_csv(os.path.join(data_dir, 'stocksz.csv'), index=False)
+            print("✅ 已创建示例数据文件: stocksz.csv")
+            
+            # 重新加载数据
+            analyzer._load_market_data()
+        
+        # 示例股票分析
+        sample_stocks = [
+            ('000001.SZ', '平安银行'),
+        ]
+        
+        for symbol, name in sample_stocks:
+            print(f"\n📊 正在分析 {name} ({symbol})...")
+            result = analyzer.analyze_single_stock(symbol)
+            if result:
+                analyzer.print_analysis_report(result)
+            else:
+                print(f"❌ 无法分析 {symbol}，跳过...")
+            print("\n" + "="*60 + "\n")
+            
+    except Exception as e:
+        print(f"❌ 运行过程中出现错误: {e}")
+        import traceback
+        traceback.print_exc()
+        print("\n💡 建议:")
+        print("1. 确保已安装所需依赖: pip install pandas numpy")
+        print("2. 如果需要模式识别功能: pip install scipy")
+        print("3. 检查数据目录是否存在: e:/stockdata")
 
 
 if __name__ == "__main__":
+    # 检查基本依赖
+    try:
+        import pandas as pd
+        import numpy as np
+        print("✅ 基本依赖检查通过")
+    except ImportError as e:
+        print(f"❌ 缺少必要依赖: {e}")
+        print("请运行: pip install pandas numpy")
+        sys.exit(1)
+    
     main()
+    
+    print("\n💡 提示:")
+    print("1. 要分析其他股票，请修改 main() 函数中的 sample_stocks 列表")
+    print("2. 确保数据文件位于 e:/stockdata 目录中")
+    print("3. 如需完整功能，建议安装: pip install scipy")

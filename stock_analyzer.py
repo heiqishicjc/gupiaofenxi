@@ -19,23 +19,6 @@ from datetime import datetime, timedelta
 import warnings
 warnings.filterwarnings('ignore')
 
-# 尝试设置控制台编码为UTF-8，以支持中文显示
-import sys
-import io
-
-# 对于Windows，尝试设置控制台编码
-if sys.platform == "win32":
-    try:
-        # 尝试设置控制台输出编码
-        import codecs
-        # 设置标准输出的编码
-        if sys.stdout.encoding != 'UTF-8':
-            sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding='utf-8', errors='replace')
-        if sys.stderr.encoding != 'UTF-8':
-            sys.stderr = io.TextIOWrapper(sys.stderr.buffer, encoding='utf-8', errors='replace')
-    except Exception as e:
-        # 如果设置失败，继续运行
-        pass
 
 # 添加src目录到Python路径
 sys.path.append(os.path.join(os.path.dirname(__file__), 'src'))

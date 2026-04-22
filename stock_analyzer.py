@@ -27,7 +27,7 @@ try:
     from visualization.chart_plotter import ChartPlotter
     HAS_SRC_MODULES = True
 except ImportError:
-    print("⚠️  注意: 未找到 src 模块，部分功能可能受限")
+    print("[!] 注意: 未找到 src 模块，部分功能可能受限")
     HAS_SRC_MODULES = False
 
 

@@ -169,6 +169,16 @@ class StockBacktester:
             self.signals.loc[self.data['rsi'] < 30, 'signal'] = 1
             self.signals.loc[self.data['rsi'] > 70, 'signal'] = 0
             
+        elif strategy == 'macd_crossover':
+            # MACD金叉死叉策略：MACD上穿信号线时买入，下穿时卖出
+            # 确保MACD指标已计算
+            if 'macd' not in self.data.columns:
+                self.calculate_indicators()
+            # 金叉：MACD > MACD信号线
+            self.signals.loc[self.data['macd'] > self.data['macd_signal'], 'signal'] = 1
+            # 死叉：MACD <= MACD信号线
+            self.signals.loc[self.data['macd'] <= self.data['macd_signal'], 'signal'] = 0
+            
         else:
             print(f"未知策略: {strategy}，使用默认双移动平均线策略")
             self.signals.loc[self.data['sma_20'] > self.data['sma_50'], 'signal'] = 1
@@ -308,10 +318,18 @@ class StockBacktester:
             
             avg_win = np.mean(winning_trades) if winning_trades else 0
             avg_loss = np.mean(losing_trades) if losing_trades else 0
-            profit_factor = abs(avg_win / avg_loss) if avg_loss != 0 else float('inf')
+            if avg_loss != 0:
+                profit_factor = abs(avg_win / avg_loss)
+                profit_factor_str = f"{profit_factor:.2f}"
+            else:
+                profit_factor = float('inf')
+                profit_factor_str = "无限大"
         else:
             win_rate = 0
             profit_factor = 0
+            profit_factor_str = "0.00"
+            winning_trades = []
+            losing_trades = []
         
         # 保存绩效指标
         self.performance = {
@@ -322,11 +340,11 @@ class StockBacktester:
             '最大回撤': max_drawdown,
             '夏普比率': sharpe_ratio,
             '胜率': win_rate,
-            '盈亏比': profit_factor,
+            '盈亏比': profit_factor_str,
             '交易天数': days,
             '交易次数': len(self.portfolio[self.portfolio['positions'] != 0]),
-            '盈利交易数': len(winning_trades) if 'winning_trades' in locals() else 0,
-            '亏损交易数': len(losing_trades) if 'losing_trades' in locals() else 0
+            '盈利交易数': len(winning_trades),
+            '亏损交易数': len(losing_trades)
         }
         
         print("\n" + "="*50)
@@ -338,16 +356,31 @@ class StockBacktester:
                     print(f"{key}: {value:.2%}")
                 elif '资金' in key or '资产' in key:
                     print(f"{key}: ￥{value:,.2f}")
-                elif key == '盈亏比':
-                    if value == float('inf'):
-                        print(f"{key}: 无限大")
-                    else:
-                        print(f"{key}: {value:.2f}")
                 else:
                     print(f"{key}: {value:.4f}")
             else:
                 print(f"{key}: {value}")
         print("="*50)
+    
+    def save_results(self, filename='backtest_results.csv'):
+        """保存回测结果到CSV文件"""
+        if self.portfolio is None:
+            print("错误: 没有回测数据可用")
+            return
+        
+        try:
+            # 保存投资组合数据
+            self.portfolio.to_csv(filename)
+            print(f"投资组合数据已保存到 '{filename}'")
+            
+            # 保存绩效指标
+            perf_filename = 'performance_summary.csv'
+            perf_df = pd.DataFrame([self.performance])
+            perf_df.to_csv(perf_filename, index=False)
+            print(f"绩效指标已保存到 '{perf_filename}'")
+            
+        except Exception as e:
+            print(f"保存结果时出错: {e}")
     
     def plot_results(self):
         """绘制回测结果图表"""
@@ -416,7 +449,7 @@ class StockBacktester:
 
 def main():
     """主函数"""
-    print("个股回测系统 v1.0")
+    print("个股回测系统 v1.1")
     print("="*50)
     
     # 创建回测实例
@@ -426,14 +459,21 @@ def main():
     backtester.calculate_indicators()
     
     # 选择策略并生成信号
-    strategies = ['dual_sma', 'mean_reversion', 'rsi']
+    strategies = ['dual_sma', 'mean_reversion', 'rsi', 'macd_crossover']
+    strategy_names = {
+        'dual_sma': '双移动平均线策略',
+        'mean_reversion': '均值回归策略',
+        'rsi': 'RSI超买超卖策略',
+        'macd_crossover': 'MACD金叉死叉策略'
+    }
+    
     print("\n可选策略:")
     for i, strategy in enumerate(strategies, 1):
-        print(f"{i}. {strategy}")
+        print(f"{i}. {strategy_names[strategy]} ({strategy})")
     
     try:
-        choice = int(input("\n请选择策略 (输入编号 1-3，默认1): ") or 1)
-        if choice < 1 or choice > 3:
+        choice = int(input("\n请选择策略 (输入编号 1-4，默认1): ") or 1)
+        if choice < 1 or choice > 4:
             choice = 1
     except:
         choice = 1
@@ -446,10 +486,17 @@ def main():
     # 执行回测
     backtester.backtest(commission=0.001)
     
+    # 保存结果
+    backtester.save_results()
+    
     # 显示结果
     backtester.plot_results()
     
     print("\n回测完成！详细结果已保存。")
+    print("生成的文件:")
+    print("  - backtest_results.csv: 投资组合每日数据")
+    print("  - performance_summary.csv: 绩效指标汇总")
+    print("  - backtest_results.png: 回测图表")
 
 if __name__ == "__main__":
     main()

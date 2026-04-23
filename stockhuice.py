@@ -179,6 +179,18 @@ class StockBacktester:
             # 死叉：MACD <= MACD信号线
             self.signals.loc[self.data['macd'] <= self.data['macd_signal'], 'signal'] = 0
             
+        elif strategy == 'combined':
+            # 组合策略：RSI < 30 且价格低于布林带下轨时买入，RSI > 70 或价格高于布林带上轨时卖出
+            if 'rsi' not in self.data.columns:
+                self.calculate_indicators()
+            # 买入条件：RSI < 30 且价格低于布林带下轨
+            buy_condition = (self.data['rsi'] < 30) & (self.data['price'] < self.data['bb_lower'])
+            # 卖出条件：RSI > 70 或价格高于布林带上轨
+            sell_condition = (self.data['rsi'] > 70) | (self.data['price'] > self.data['bb_upper'])
+            
+            self.signals.loc[buy_condition, 'signal'] = 1
+            self.signals.loc[sell_condition, 'signal'] = 0
+            
         else:
             print(f"未知策略: {strategy}，使用默认双移动平均线策略")
             self.signals.loc[self.data['sma_20'] > self.data['sma_50'], 'signal'] = 1
@@ -320,18 +332,45 @@ class StockBacktester:
             avg_loss = np.mean(losing_trades) if losing_trades else 0
             if avg_loss != 0:
                 profit_factor = abs(avg_win / avg_loss)
+                profit_factor_value = profit_factor
                 profit_factor_str = f"{profit_factor:.2f}"
             else:
-                profit_factor = float('inf')
+                profit_factor_value = float('inf')
                 profit_factor_str = "无限大"
         else:
             win_rate = 0
-            profit_factor = 0
+            profit_factor_value = 0
             profit_factor_str = "0.00"
             winning_trades = []
             losing_trades = []
         
-        # 保存绩效指标
+        # 计算更多指标：波动率、索提诺比率
+        volatility = excess_returns.std() * np.sqrt(252) if len(excess_returns) > 0 else 0
+        
+        # 索提诺比率（只考虑下行风险）
+        downside_returns = excess_returns[excess_returns < 0]
+        downside_volatility = downside_returns.std() * np.sqrt(252) if len(downside_returns) > 0 else 0
+        sortino_ratio = np.sqrt(252) * excess_returns.mean() / downside_volatility if downside_volatility > 0 else 0
+        
+        # 保存绩效指标（数值版本用于DataFrame）
+        self.performance_numeric = {
+            '初始资金': self.initial_capital,
+            '最终资产': self.portfolio['total'].iloc[-1],
+            '总收益率': total_return,
+            '年化收益率': annual_return,
+            '最大回撤': max_drawdown,
+            '夏普比率': sharpe_ratio,
+            '索提诺比率': sortino_ratio,
+            '波动率': volatility,
+            '胜率': win_rate,
+            '盈亏比数值': profit_factor_value,
+            '交易天数': days,
+            '交易次数': len(self.portfolio[self.portfolio['positions'] != 0]),
+            '盈利交易数': len(winning_trades),
+            '亏损交易数': len(losing_trades)
+        }
+        
+        # 保存用于显示的绩效指标（包含格式化字符串）
         self.performance = {
             '初始资金': self.initial_capital,
             '最终资产': self.portfolio['total'].iloc[-1],
@@ -339,6 +378,8 @@ class StockBacktester:
             '年化收益率': annual_return,
             '最大回撤': max_drawdown,
             '夏普比率': sharpe_ratio,
+            '索提诺比率': sortino_ratio,
+            '波动率': volatility,
             '胜率': win_rate,
             '盈亏比': profit_factor_str,
             '交易天数': days,
@@ -356,6 +397,8 @@ class StockBacktester:
                     print(f"{key}: {value:.2%}")
                 elif '资金' in key or '资产' in key:
                     print(f"{key}: ￥{value:,.2f}")
+                elif key == '波动率':
+                    print(f"{key}: {value:.2%}")
                 else:
                     print(f"{key}: {value:.4f}")
             else:
@@ -373,11 +416,21 @@ class StockBacktester:
             self.portfolio.to_csv(filename)
             print(f"投资组合数据已保存到 '{filename}'")
             
-            # 保存绩效指标
+            # 保存绩效指标（使用数值版本）
             perf_filename = 'performance_summary.csv'
-            perf_df = pd.DataFrame([self.performance])
+            if hasattr(self, 'performance_numeric'):
+                perf_df = pd.DataFrame([self.performance_numeric])
+            else:
+                # 回退到原始版本
+                perf_df = pd.DataFrame([self.performance])
             perf_df.to_csv(perf_filename, index=False)
             print(f"绩效指标已保存到 '{perf_filename}'")
+            
+            # 保存交易信号
+            if self.signals is not None:
+                signals_filename = 'trading_signals.csv'
+                self.signals.to_csv(signals_filename)
+                print(f"交易信号已保存到 '{signals_filename}'")
             
         except Exception as e:
             print(f"保存结果时出错: {e}")
@@ -459,12 +512,13 @@ def main():
     backtester.calculate_indicators()
     
     # 选择策略并生成信号
-    strategies = ['dual_sma', 'mean_reversion', 'rsi', 'macd_crossover']
+    strategies = ['dual_sma', 'mean_reversion', 'rsi', 'macd_crossover', 'combined']
     strategy_names = {
         'dual_sma': '双移动平均线策略',
         'mean_reversion': '均值回归策略',
         'rsi': 'RSI超买超卖策略',
-        'macd_crossover': 'MACD金叉死叉策略'
+        'macd_crossover': 'MACD金叉死叉策略',
+        'combined': '组合策略（RSI+布林带）'
     }
     
     print("\n可选策略:")
@@ -472,8 +526,8 @@ def main():
         print(f"{i}. {strategy_names[strategy]} ({strategy})")
     
     try:
-        choice = int(input("\n请选择策略 (输入编号 1-4，默认1): ") or 1)
-        if choice < 1 or choice > 4:
+        choice = int(input("\n请选择策略 (输入编号 1-5，默认1): ") or 1)
+        if choice < 1 or choice > 5:
             choice = 1
     except:
         choice = 1

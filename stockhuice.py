@@ -150,30 +150,29 @@ class StockBacktester:
         self.signals = pd.DataFrame(index=self.data.index)
         self.signals['price'] = self.data['price']
         
+        # 初始化信号列
+        self.signals['signal'] = 0
+        
         if strategy == 'dual_sma':
             # 双移动平均线策略：短期均线上穿长期均线时买入，下穿时卖出
-            self.signals['signal'] = 0
-            self.signals['signal'][self.data['sma_20'] > self.data['sma_50']] = 1
-            self.signals['signal'][self.data['sma_20'] <= self.data['sma_50']] = 0
+            # 使用loc避免链式赋值警告
+            self.signals.loc[self.data['sma_20'] > self.data['sma_50'], 'signal'] = 1
+            self.signals.loc[self.data['sma_20'] <= self.data['sma_50'], 'signal'] = 0
             
         elif strategy == 'mean_reversion':
             # 均值回归策略：价格低于布林带下轨时买入，高于上轨时卖出
-            self.signals['signal'] = 0
-            self.signals['signal'][self.data['price'] < self.data['bb_lower']] = 1
-            self.signals['signal'][self.data['price'] > self.data['bb_upper']] = -1
-            # 将-1转换为0（卖出信号）
-            self.signals['signal'] = self.signals['signal'].replace(-1, 0)
+            self.signals.loc[self.data['price'] < self.data['bb_lower'], 'signal'] = 1
+            self.signals.loc[self.data['price'] > self.data['bb_upper'], 'signal'] = 0
             
         elif strategy == 'rsi':
             # RSI策略：RSI低于30时买入，高于70时卖出
-            self.signals['signal'] = 0
-            self.signals['signal'][self.data['rsi'] < 30] = 1
-            self.signals['signal'][self.data['rsi'] > 70] = 0
+            self.signals.loc[self.data['rsi'] < 30, 'signal'] = 1
+            self.signals.loc[self.data['rsi'] > 70, 'signal'] = 0
             
         else:
             print(f"未知策略: {strategy}，使用默认双移动平均线策略")
-            self.signals['signal'] = 0
-            self.signals['signal'][self.data['sma_20'] > self.data['sma_50']] = 1
+            self.signals.loc[self.data['sma_20'] > self.data['sma_50'], 'signal'] = 1
+            self.signals.loc[self.data['sma_20'] <= self.data['sma_50'], 'signal'] = 0
         
         # 计算持仓变化（信号从0变为1时买入，从1变为0时卖出）
         self.signals['positions'] = self.signals['signal'].diff()
@@ -207,6 +206,11 @@ class StockBacktester:
         holdings = 0
         cash = self.initial_capital
         
+        # 使用列表收集数据，避免在循环中直接修改DataFrame
+        holdings_list = []
+        cash_list = []
+        total_list = []
+        
         for i in range(len(self.portfolio)):
             price = self.portfolio['price'].iloc[i]
             position_change = self.portfolio['positions'].iloc[i]
@@ -228,10 +232,15 @@ class StockBacktester:
                 holdings = 0
                 cash += revenue
             
-            # 更新每日资产
-            self.portfolio['holdings'].iloc[i] = holdings
-            self.portfolio['cash'].iloc[i] = cash
-            self.portfolio['total'].iloc[i] = cash + holdings * price
+            # 收集每日数据
+            holdings_list.append(holdings)
+            cash_list.append(cash)
+            total_list.append(cash + holdings * price)
+        
+        # 批量更新DataFrame列
+        self.portfolio['holdings'] = holdings_list
+        self.portfolio['cash'] = cash_list
+        self.portfolio['total'] = total_list
         
         # 计算绩效指标
         self.calculate_performance()
@@ -265,6 +274,45 @@ class StockBacktester:
         excess_returns = self.portfolio['returns'].dropna()
         sharpe_ratio = np.sqrt(252) * excess_returns.mean() / excess_returns.std() if excess_returns.std() > 0 else 0
         
+        # 计算胜率和盈亏比
+        trade_returns = []
+        in_trade = False
+        entry_price = 0
+        entry_index = 0
+        
+        for i in range(1, len(self.portfolio)):
+            position_change = self.portfolio['positions'].iloc[i]
+            current_price = self.portfolio['price'].iloc[i]
+            
+            if position_change == 1 and not in_trade:  # 买入
+                in_trade = True
+                entry_price = current_price
+                entry_index = i
+            elif position_change == -1 and in_trade:  # 卖出
+                in_trade = False
+                trade_return = (current_price - entry_price) / entry_price
+                trade_returns.append(trade_return)
+        
+        # 如果有未平仓的交易，使用最后价格计算
+        if in_trade and entry_index < len(self.portfolio) - 1:
+            final_price = self.portfolio['price'].iloc[-1]
+            trade_return = (final_price - entry_price) / entry_price
+            trade_returns.append(trade_return)
+        
+        # 计算胜率、盈亏比等
+        if trade_returns:
+            winning_trades = [r for r in trade_returns if r > 0]
+            losing_trades = [r for r in trade_returns if r <= 0]
+            
+            win_rate = len(winning_trades) / len(trade_returns) if trade_returns else 0
+            
+            avg_win = np.mean(winning_trades) if winning_trades else 0
+            avg_loss = np.mean(losing_trades) if losing_trades else 0
+            profit_factor = abs(avg_win / avg_loss) if avg_loss != 0 else float('inf')
+        else:
+            win_rate = 0
+            profit_factor = 0
+        
         # 保存绩效指标
         self.performance = {
             '初始资金': self.initial_capital,
@@ -273,8 +321,12 @@ class StockBacktester:
             '年化收益率': annual_return,
             '最大回撤': max_drawdown,
             '夏普比率': sharpe_ratio,
+            '胜率': win_rate,
+            '盈亏比': profit_factor,
             '交易天数': days,
-            '交易次数': len(self.portfolio[self.portfolio['positions'] != 0])
+            '交易次数': len(self.portfolio[self.portfolio['positions'] != 0]),
+            '盈利交易数': len(winning_trades) if 'winning_trades' in locals() else 0,
+            '亏损交易数': len(losing_trades) if 'losing_trades' in locals() else 0
         }
         
         print("\n" + "="*50)
@@ -282,10 +334,15 @@ class StockBacktester:
         print("="*50)
         for key, value in self.performance.items():
             if isinstance(value, float):
-                if '率' in key or '比率' in key:
+                if '率' in key or '比率' in key or '胜率' in key:
                     print(f"{key}: {value:.2%}")
                 elif '资金' in key or '资产' in key:
                     print(f"{key}: ￥{value:,.2f}")
+                elif key == '盈亏比':
+                    if value == float('inf'):
+                        print(f"{key}: 无限大")
+                    else:
+                        print(f"{key}: {value:.2f}")
                 else:
                     print(f"{key}: {value:.4f}")
             else:

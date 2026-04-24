@@ -8,7 +8,7 @@
 
 用法：
     python newAstockbacktrade.py [股票代码]
-    若不指定股票代码，则回测所有股票。
+    若不指定股票代码，则默认回测 002594.SZ（比亚迪）。
 """
 
 import os
@@ -256,11 +256,13 @@ def main():
     print("个股回测工具（MA5/MA10 金叉死叉策略）")
     print("=" * 60)
 
-    # 解析命令行参数
-    symbol = None
+    # 解析命令行参数，默认回测 002594.SZ（比亚迪）
+    symbol = "002594.SZ"
     if len(sys.argv) > 1:
         symbol = sys.argv[1].strip()
         print(f"指定股票代码: {symbol}")
+    else:
+        print(f"未指定股票代码，默认回测: {symbol}")
 
     # 1. 加载数据
     df = load_data()

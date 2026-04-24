@@ -3,7 +3,7 @@
 """
 指定个股数据回测工具
 策略：MA5上穿MA10买入，MA5下穿MA10卖出
-数据来源：e:\stockdatasz.csv 或 e:\stockdatash.csv
+数据来源：e:\\stockdatasz.csv 或 e:\\stockdatash.csv
 结果输出：huicejieguo.md
 """
 

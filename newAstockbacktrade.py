@@ -5,6 +5,10 @@
 策略：MA5上穿MA10买入，MA5下穿MA10卖出
 数据来源：e:\\stockdatasz.csv 或 e:\\stockdatash.csv
 结果输出：huicejieguo.md
+
+用法：
+    python newAstockbacktrade.py [股票代码]
+    若不指定股票代码，则回测所有股票。
 """
 
 import os
@@ -171,15 +175,22 @@ def backtest_single_stock(df_stock):
         "final_cash": cash,
     }
 
-def run_backtest(df):
-    """对所有股票执行回测"""
+def run_backtest(df, symbol=None):
+    """对指定股票或所有股票执行回测"""
     results = {}
-    symbols = df["symbol"].unique()
-    print(f"共发现 {len(symbols)} 只股票，开始回测...")
+    if symbol:
+        # 只回测指定股票
+        symbols = [symbol]
+        print(f"回测指定股票: {symbol}")
+    else:
+        symbols = df["symbol"].unique()
+        print(f"共发现 {len(symbols)} 只股票，开始回测...")
 
     for sym in symbols:
         df_stock = df[df["symbol"] == sym].copy()
         if len(df_stock) < 15:  # 至少需要15个交易日
+            if symbol:
+                print(f"警告：股票 {sym} 数据不足15个交易日，跳过")
             continue
         result = backtest_single_stock(df_stock)
         results[sym] = result
@@ -205,7 +216,10 @@ def generate_markdown(results):
     lines.append("## 总体统计")
     lines.append("")
     lines.append(f"- 回测股票数量：{total_stocks}")
-    lines.append(f"- 盈利股票数量：{win_stocks}（{win_stocks/total_stocks*100:.1f}%）" if total_stocks else "- 盈利股票数量：0")
+    if total_stocks > 0:
+        lines.append(f"- 盈利股票数量：{win_stocks}（{win_stocks/total_stocks*100:.1f}%）")
+    else:
+        lines.append("- 盈利股票数量：0")
     lines.append(f"- 平均收益率：{avg_return:.2f}%")
     lines.append(f"- 平均交易次数：{avg_trades:.1f}")
     lines.append("")
@@ -242,6 +256,12 @@ def main():
     print("个股回测工具（MA5/MA10 金叉死叉策略）")
     print("=" * 60)
 
+    # 解析命令行参数
+    symbol = None
+    if len(sys.argv) > 1:
+        symbol = sys.argv[1].strip()
+        print(f"指定股票代码: {symbol}")
+
     # 1. 加载数据
     df = load_data()
     print(f"原始数据行数：{len(df)}")
@@ -254,7 +274,7 @@ def main():
     df = generate_signals(df)
 
     # 4. 回测
-    results = run_backtest(df)
+    results = run_backtest(df, symbol)
 
     # 5. 生成报告
     md_content = generate_markdown(results)

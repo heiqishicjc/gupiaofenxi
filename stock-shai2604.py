@@ -79,14 +79,30 @@ def load_stock_data(symbol, start_date=None, end_date=None):
             result['close'] = pd.to_numeric(result['close'], errors='coerce')
             result = result.dropna(subset=['close'])
             
-            # 将日期列转换为字符串，以便与输入的字符串日期进行比较
-            result['date'] = result['date'].astype(str)
+            # 将日期列转换为整数（如果CSV中是YYYYMMDD格式的整数）
+            # 同时支持字符串格式的日期
+            try:
+                result['date'] = pd.to_numeric(result['date'], errors='coerce').astype('Int64')
+            except:
+                # 如果转换失败，保持原样
+                pass
             
-            # 按日期范围过滤
+            # 将输入的日期也转换为整数进行比较
             if start_date is not None:
-                result = result[result['date'] >= str(start_date)]
+                try:
+                    start_int = int(start_date)
+                    result = result[result['date'] >= start_int]
+                except ValueError:
+                    # 如果输入不是纯数字，使用字符串比较
+                    result['date'] = result['date'].astype(str)
+                    result = result[result['date'] >= str(start_date)]
             if end_date is not None:
-                result = result[result['date'] <= str(end_date)]
+                try:
+                    end_int = int(end_date)
+                    result = result[result['date'] <= end_int]
+                except ValueError:
+                    result['date'] = result['date'].astype(str)
+                    result = result[result['date'] <= str(end_date)]
             
             if result.empty:
                 print(f"日期范围过滤后无数据")

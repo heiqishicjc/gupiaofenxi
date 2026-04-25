@@ -3,8 +3,8 @@ import numpy as np
 import os
 from datetime import datetime
 
-def load_stock_data(symbol):
-    """从三个CSV文件中加载指定股票代码的数据"""
+def load_stock_data(symbol, start_date=None, end_date=None):
+    """从三个CSV文件中加载指定股票代码的数据，支持日期范围过滤"""
     csv_files = [
         r"e:\stockdatasz.csv",
         r"e:\stockdatash.csv",
@@ -63,6 +63,15 @@ def load_stock_data(symbol):
             result.columns = ['date', 'close']
             result['close'] = pd.to_numeric(result['close'], errors='coerce')
             result = result.dropna(subset=['close'])
+            
+            # 按日期范围过滤
+            if start_date is not None:
+                result = result[result['date'] >= start_date]
+            if end_date is not None:
+                result = result[result['date'] <= end_date]
+            
+            if result.empty:
+                continue
             
             return result
             
@@ -165,11 +174,21 @@ def find_best_parameters(data):
     
     return results
 
-def save_results_to_md(symbol, all_results, best_result, output_file):
+def save_results_to_md(symbol, all_results, best_result, output_file, start_date=None, end_date=None):
     """将结果保存为Markdown文件"""
     with open(output_file, 'w', encoding='utf-8') as f:
         f.write(f"# 股票 {symbol} MA交叉策略回测结果\n\n")
         f.write(f"生成时间：{datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n\n")
+        
+        # 显示时间段信息
+        if start_date and end_date:
+            f.write(f"**回测时间段**: {start_date} 至 {end_date}\n\n")
+        elif start_date:
+            f.write(f"**回测起始日期**: {start_date}\n\n")
+        elif end_date:
+            f.write(f"**回测结束日期**: {end_date}\n\n")
+        else:
+            f.write("**回测时间段**: 全部可用数据\n\n")
         
         f.write("## 参数说明\n\n")
         f.write("- MA1（短周期）: 3, 5, 7\n")
@@ -195,7 +214,7 @@ def save_results_to_md(symbol, all_results, best_result, output_file):
 
 def main():
     print("=" * 60)
-    print("股票MA交叉策略回测工具")
+    print("股票MA交叉策略回测工具（支持指定时间段）")
     print("=" * 60)
     
     # 输入股票代码
@@ -205,10 +224,20 @@ def main():
         print("股票代码不能为空！")
         return
     
+    # 输入时间段
+    start_date = input("请输入起始日期（格式YYYYMMDD，直接回车表示不限）: ").strip()
+    end_date = input("请输入结束日期（格式YYYYMMDD，直接回车表示不限）: ").strip()
+    
+    # 如果输入为空则设为None
+    if not start_date:
+        start_date = None
+    if not end_date:
+        end_date = None
+    
     print(f"\n正在加载股票 {symbol} 的数据...")
     
-    # 加载数据
-    data = load_stock_data(symbol)
+    # 加载数据（支持日期范围过滤）
+    data = load_stock_data(symbol, start_date, end_date)
     
     if data is None or data.empty:
         print(f"未找到股票 {symbol} 的数据，请检查CSV文件是否存在且包含该股票。")
@@ -247,7 +276,7 @@ def main():
     
     # 保存结果
     output_file = r"E:\shai202604.md"
-    save_results_to_md(symbol, all_results, best_result, output_file)
+    save_results_to_md(symbol, all_results, best_result, output_file, start_date, end_date)
     print(f"\n结果已保存到: {output_file}")
 
 if __name__ == "__main__":

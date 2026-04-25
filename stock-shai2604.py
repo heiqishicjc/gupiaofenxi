@@ -19,12 +19,14 @@ def load_stock_data(symbol, start_date=None, end_date=None):
             # 读取CSV文件
             df = pd.read_csv(csv_file, encoding='utf-8-sig')
             
-            # 打印CSV文件的列名，方便调试
+            # 打印CSV文件的列名和前几行数据，方便调试
             print(f"文件 {csv_file} 的列名: {list(df.columns)}")
+            print(f"文件 {csv_file} 的前3行数据:")
+            print(df.head(3).to_string())
             
             # 查找股票代码列（扩展列名列表）
             symbol_col = None
-            for col in ['symbol', 'code', 'ts_code', '股票代码', 'stock_code', '代码']:
+            for col in ['symbol', 'code', 'ts_code', '股票代码', 'stock_code', '代码', 'ts_code']:
                 if col in df.columns:
                     symbol_col = col
                     break
@@ -35,8 +37,17 @@ def load_stock_data(symbol, start_date=None, end_date=None):
             
             print(f"找到股票代码列: {symbol_col}")
             
+            # 打印股票代码列的前几个值，查看格式
+            print(f"股票代码列的前5个值: {df[symbol_col].head().tolist()}")
+            
             # 过滤出目标股票（支持部分匹配，如 002495 匹配 002495.SZ）
+            # 同时尝试去除后缀（如 .SZ、.SH）进行匹配
             stock_data = df[df[symbol_col].astype(str).str.contains(str(symbol), na=False)]
+            
+            # 如果没找到，尝试去除后缀匹配
+            if stock_data.empty:
+                # 尝试匹配纯数字部分
+                stock_data = df[df[symbol_col].astype(str).str.replace(r'\..*$', '', regex=True).str.contains(str(symbol), na=False)]
             
             if stock_data.empty:
                 print(f"文件 {csv_file} 中未找到股票 {symbol}")
@@ -46,8 +57,8 @@ def load_stock_data(symbol, start_date=None, end_date=None):
             
             # 确保有日期列（扩展列名列表）
             date_col = None
-            for col in ['date', 'trade_date', '日期', '交易日期', 'datetime']:
-                if col in stock_data.columns:
+            for col in ['date', 'trade_date', '日期', '交易日期', 'datetime', 'trade_date']:
+                if col in df.columns:
                     date_col = col
                     break
             
@@ -59,8 +70,8 @@ def load_stock_data(symbol, start_date=None, end_date=None):
             
             # 确保有收盘价列（扩展列名列表）
             close_col = None
-            for col in ['close', 'Close', '收盘价', '收盘', 'close_price']:
-                if col in stock_data.columns:
+            for col in ['close', 'Close', '收盘价', '收盘', 'close_price', 'close']:
+                if col in df.columns:
                     close_col = col
                     break
             

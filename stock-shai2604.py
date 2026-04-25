@@ -256,11 +256,39 @@ def main():
     
     print(f"\n正在加载股票 {symbol} 的数据...")
     
+    # 检查CSV文件是否存在
+    csv_files = [
+        r"e:\stockdatasz.csv",
+        r"e:\stockdatash.csv",
+        r"e:\stockdataother.csv"
+    ]
+    
+    found_any_file = False
+    for csv_file in csv_files:
+        if os.path.exists(csv_file):
+            found_any_file = True
+            print(f"找到文件: {csv_file}")
+        else:
+            print(f"文件不存在: {csv_file}")
+    
+    if not found_any_file:
+        print("错误：未找到任何CSV数据文件，请检查文件路径。")
+        return
+    
     # 加载数据（支持日期范围过滤）
-    data = load_stock_data(symbol, start_date, end_date)
+    try:
+        data = load_stock_data(symbol, start_date, end_date)
+    except Exception as e:
+        print(f"加载数据时发生异常: {e}")
+        import traceback
+        traceback.print_exc()
+        return
     
     if data is None or data.empty:
         print(f"未找到股票 {symbol} 的数据，请检查CSV文件是否存在且包含该股票。")
+        print("提示：请确认CSV文件中包含股票代码列（如 symbol、code、ts_code、股票代码、stock_code、代码）")
+        print("提示：请确认CSV文件中包含日期列（如 date、trade_date、日期、交易日期、datetime）")
+        print("提示：请确认CSV文件中包含收盘价列（如 close、Close、收盘价、收盘、close_price）")
         return
     
     print(f"成功加载 {len(data)} 条数据记录")
@@ -269,7 +297,13 @@ def main():
     print("\n正在回测所有MA参数组合...")
     
     # 寻找最优参数
-    all_results = find_best_parameters(data)
+    try:
+        all_results = find_best_parameters(data)
+    except Exception as e:
+        print(f"回测时发生异常: {e}")
+        import traceback
+        traceback.print_exc()
+        return
     
     if all_results is None or len(all_results) == 0:
         print("回测失败，数据不足或无法生成有效信号。")
@@ -296,8 +330,13 @@ def main():
     
     # 保存结果
     output_file = r"E:\shai202604.md"
-    save_results_to_md(symbol, all_results, best_result, output_file, start_date, end_date)
-    print(f"\n结果已保存到: {output_file}")
+    try:
+        save_results_to_md(symbol, all_results, best_result, output_file, start_date, end_date)
+        print(f"\n结果已保存到: {output_file}")
+    except Exception as e:
+        print(f"保存结果时发生异常: {e}")
+        import traceback
+        traceback.print_exc()
 
 if __name__ == "__main__":
     main()

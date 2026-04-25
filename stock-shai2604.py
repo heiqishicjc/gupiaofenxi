@@ -64,11 +64,14 @@ def load_stock_data(symbol, start_date=None, end_date=None):
             result['close'] = pd.to_numeric(result['close'], errors='coerce')
             result = result.dropna(subset=['close'])
             
+            # 将日期列转换为字符串，以便与输入的字符串日期进行比较
+            result['date'] = result['date'].astype(str)
+            
             # 按日期范围过滤
             if start_date is not None:
-                result = result[result['date'] >= start_date]
+                result = result[result['date'] >= str(start_date)]
             if end_date is not None:
-                result = result[result['date'] <= end_date]
+                result = result[result['date'] <= str(end_date)]
             
             if result.empty:
                 continue

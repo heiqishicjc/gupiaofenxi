@@ -19,41 +19,56 @@ def load_stock_data(symbol, start_date=None, end_date=None):
             # 读取CSV文件
             df = pd.read_csv(csv_file, encoding='utf-8-sig')
             
-            # 查找股票代码列
+            # 打印CSV文件的列名，方便调试
+            print(f"文件 {csv_file} 的列名: {list(df.columns)}")
+            
+            # 查找股票代码列（扩展列名列表）
             symbol_col = None
-            for col in ['symbol', 'code', 'ts_code', '股票代码']:
+            for col in ['symbol', 'code', 'ts_code', '股票代码', 'stock_code', '代码']:
                 if col in df.columns:
                     symbol_col = col
                     break
             
             if symbol_col is None:
+                print(f"文件 {csv_file} 中未找到股票代码列")
                 continue
             
-            # 过滤出目标股票
-            stock_data = df[df[symbol_col].astype(str).str.contains(str(symbol))]
+            print(f"找到股票代码列: {symbol_col}")
+            
+            # 过滤出目标股票（支持部分匹配，如 002495 匹配 002495.SZ）
+            stock_data = df[df[symbol_col].astype(str).str.contains(str(symbol), na=False)]
             
             if stock_data.empty:
+                print(f"文件 {csv_file} 中未找到股票 {symbol}")
                 continue
             
-            # 确保有日期列
+            print(f"找到 {len(stock_data)} 条股票 {symbol} 的数据")
+            
+            # 确保有日期列（扩展列名列表）
             date_col = None
-            for col in ['date', 'trade_date', '日期']:
+            for col in ['date', 'trade_date', '日期', '交易日期', 'datetime']:
                 if col in stock_data.columns:
                     date_col = col
                     break
             
             if date_col is None:
+                print(f"文件 {csv_file} 中未找到日期列")
                 continue
             
-            # 确保有收盘价列
+            print(f"找到日期列: {date_col}")
+            
+            # 确保有收盘价列（扩展列名列表）
             close_col = None
-            for col in ['close', 'Close', '收盘价']:
+            for col in ['close', 'Close', '收盘价', '收盘', 'close_price']:
                 if col in stock_data.columns:
                     close_col = col
                     break
             
             if close_col is None:
+                print(f"文件 {csv_file} 中未找到收盘价列")
                 continue
+            
+            print(f"找到收盘价列: {close_col}")
             
             # 按日期排序
             stock_data = stock_data.sort_values(by=date_col)
@@ -74,8 +89,10 @@ def load_stock_data(symbol, start_date=None, end_date=None):
                 result = result[result['date'] <= str(end_date)]
             
             if result.empty:
+                print(f"日期范围过滤后无数据")
                 continue
             
+            print(f"最终加载 {len(result)} 条数据")
             return result
             
         except Exception as e:
